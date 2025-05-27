@@ -8,7 +8,7 @@ This module contains various basic functions used in the simulation
 Due to that the original dynamics are in continuous time, sampling time
 is included as an additional parameter, with default value
 
-dt = 0.01
+dt = 0.1
 
 and the Euler discretization method is used
 
@@ -33,7 +33,7 @@ import numpy as np
 
 ## ----------------------- Adaptive Cruise Control ----------------------------
 
-def acc_dynamics(x, u, dt = 0.01, para=np.zeros(3), mode="SIM"):
+def acc_dynamics(x, u, dt = 0.1, para=np.zeros(3), mode="SIM"):
     """
     Compute the next state based on the NOMINAL discrete-time model.
 
@@ -48,8 +48,8 @@ def acc_dynamics(x, u, dt = 0.01, para=np.zeros(3), mode="SIM"):
     Returns:
         x_next: casadi.SX or MX, next state vector. (Or just numpy array)
     """
-    m = 500.0 # the mass of the vehicle [kg]
-    v_0 = 36.0 # the speed of the leading vehicle on the autoweg [m /s ]
+    m = 1650.0 # the mass of the vehicle [kg]
+    v_0 = 18 # the speed of the leading vehicle on the autoweg [m /s ]
     if mode == "NLP":
         dot_v = 0 - 1 / m * (para[0] + para[1] * x[0] + para[2] * (x[0] ** 2)) + 1 / m * u
         dot_D = v_0 - x[0]
@@ -71,7 +71,7 @@ def acc_f(x, dt = 0.01, mode="SIM"):
     1) x: state
     2) dt: sampling time
     """
-    v_0 = 36 # front vehicle speed
+    v_0 = 13.89 # front vehicle speed
 
     dot_v_x = 0
     dot_D_x = v_0 - x[0]
@@ -83,7 +83,7 @@ def acc_f(x, dt = 0.01, mode="SIM"):
     else:
         raise ValueError("Invalid input! Please use 'NLP' for optimizatoin or 'SIM' for simulation.")
 
-def acc_g(x, dt = 0.01, mode="SIM"):
+def acc_g(x, dt = 0.1, mode="SIM"):
     """
     This is the input coupling term of the dynamics
 
@@ -91,7 +91,7 @@ def acc_g(x, dt = 0.01, mode="SIM"):
     1) x: state
     2) dt: sampling time
     """
-    m = 500.0 # vehicle mass
+    m = 1650.0 # vehicle mass
 
     dot_v_u = 1 / m
     dot_D_u = 0
@@ -106,7 +106,7 @@ def acc_g(x, dt = 0.01, mode="SIM"):
     else:
         raise ValueError("Invalid input! Please use 'NLP' for optimizatoin or 'SIM' for simulation.")
 
-def acc_kernel(x, dt = 0.01, mode="SIM"):
+def acc_kernel(x, dt = 0.1, mode="SIM"):
     """
     This is the kernel of the dynamics
 

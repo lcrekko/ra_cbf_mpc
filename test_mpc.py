@@ -6,94 +6,133 @@ is estimated from the Figure 1 in the paper **Adaptive Safety with
 Control Barrier Functions** by A.J. Taylor and A.D. Ames
 """
 import numpy as np
+import matplotlib.pyplot as plt
 from nmpc.controller import MPCController
-from nmpc.diverse_functions import acc_dynamics
+from nmpc.diverse_functions import acc_dynamics, acc_f, acc_g, acc_kernel
 # from optimization_utils.metric import max_l1_deviation_value
-# from rls.rls_main import RLS_constant
+from rls.rls_main import RLS_constant
 from rls.rls_utils import interleave_vec, interleave_diag
+from plotters.simulation import SimulateRegret
 
 # ------------- Controller Parameters --------------
 
 # prediction horizon
-N = 5
+N = 20
 
 # weighting matrices
-Q = np.array([[1, 0], [0, 1e-3]]) # the distance D is not heavily penalized
-R = 1e-3 # the input is not heavily penalized, so tracking u_ref = 0 is not prioritized
-R = np.atleast_2d(R)
-P = 2 * Q 
+Q = np.array([[1, 0], [0, 0.5]]) # the distance D is not heavily penalized
+R = np.array([[5 * 1e-6]]) # the input weakly penalized
+P = 2 * Q
 
 # ------------- System parameters & Control Objective -------------
 
 # reference state and input (set-point tracking)
-X_REF = np.array([24, 24 * 2])
-U_REF = np.array([0])
+x_ref = np.array([24, 24 * 2])
+u_ref = np.array([0])
 
 # state and input dimensions
-X_DIM = 2
-U_DIM = 1
+x_dim = 2
+u_dim = 1
 
 # initial state
-V_INITIAL = 20 # specify the initial velocity
-X_INITIAL = np.array([V_INITIAL, 60 + 1.8 * V_INITIAL])
+v_0 = 20 # specify the initial velocity
+x_0 = np.array([v_0, 60 + 1.8 * v_0])
 
 # input hard limits
-U_LIM = 10
+u_lim = 1e3
 
 # sampling time
-DT = 0.01
+dt = 0.1
 
 # simulation time & simulation steps
-T_SIM = 20
-T_STEP = int(20 / DT)
+T_sim = 100
+T_step = int(T_sim / dt)
+
+# generate the x-axis for plotting
+time_state = dt * np.arange(0, T_step + 1)
+time_input = dt * np.arange(0, T_step)
 
 # -------------- Uncertainty & adaptation ---------------
 
 # initial parameter estimate
-NUM_PARA = 3
-PARA_STAR = np.array([1.0, -2.0, 3.0])
-PARA_0 = 5 * PARA_STAR
+num_para = 3
+para_star = np.array([0.1, 0.5, 0.25])
+PARA_0 = 5 * para_star
 
 # parameter bound 
-LB_PARA = [-4, -10, -9]
-UB_PARA = [6, 6, 15]
+LB_para = [0, 0, 0]
+UB_para = [1, 5, 2.5]
 
 # parameter matrix
-H_para = interleave_diag(-np.ones(NUM_PARA), np.ones(NUM_PARA))
-h_para = interleave_vec(LB_PARA, UB_PARA)
+H_para = interleave_diag(-np.ones(num_para), np.ones(num_para))
+h_para = interleave_vec(LB_para, UB_para)
 
 # disturbance information
-W_LIM = 10
+w_lim = 2
 
 # disturbance matrix
-H_w = interleave_diag(-W_LIM * DT * np.ones(X_DIM), W_LIM * DT * np.ones(X_DIM))
+H_w = interleave_diag(-w_lim * dt * np.ones(x_dim), w_lim * dt * np.ones(x_dim))
 
 
 # generate disturbance
 np.random.seed(22) # fix the seed for reproducibility
-w_sim = np.random.uniform(-W_LIM, W_LIM, size=(X_DIM, T_STEP))
+w_sim = np.random.uniform(-w_lim, w_lim, size=(x_dim, T_step))
 
 # ------------- One-step MPC Simulation --------------
 
 # initialize the MPC controller
-ampc_controller = MPCController(N, DT,
-                                X_DIM, U_DIM,
-                                X_REF, U_REF,
-                                -U_LIM, U_LIM,
-                                Q, R, P,
-                                acc_dynamics, NUM_PARA)
+my_mpc = MPCController(N, dt,
+                       x_dim, u_dim,
+                       x_ref, u_ref,
+                       -u_lim, u_lim,
+                       Q, R, P,
+                       acc_dynamics, num_para)
 
-# solve the mpc to get the first input
-u_0 = ampc_controller.solve_closed(X_INITIAL, PARA_STAR)
+# set a default learning rate
+MU_0 = 0.5
 
-# simulate the system with the first input to get the next state
-x_plus = acc_dynamics(X_INITIAL, u_0, DT, PARA_STAR) + DT * w_sim[:, 0] # type: ignore
+# initialize the RLS instance
+my_rls = RLS_constant(num_para, MU_0, acc_kernel, acc_f, acc_g, H_w)
 
-u_1 = ampc_controller.solve_closed(x_plus, PARA_STAR)
+my_sim = SimulateRegret(my_mpc, my_rls,
+                        x_0, para_star, u_dim,
+                        Q, R,
+                        dt, T_step)
 
-u_1 = np.atleast_1d(u_1)
+out_opt = my_sim.nominal_mpc_sim(w_sim)
 
-print("Control input 1 is:", np.shape(u_1))
-print("Control input 1 is:", type(u_1))
-print(u_1.T @ R @ u_1)  # should be a scalar value
+v_traj = out_opt["x_traj"][0, :]
+D_traj = out_opt["x_traj"][1, :]
+u_traj = out_opt["u_traj"][0, :]
+
+# Create subplots (3 rows, 1 column)
+fig, axes = plt.subplots(3, 1, figsize=(10, 8))
+
+# Plot 1
+axes[0].plot(time_state, v_traj, label='velocity', color='b')
+axes[0].set_title("Adaptive Cruise Control using MPC")
+axes[0].legend()
+axes[0].set_facecolor((0.95, 0.95, 0.95))
+axes[0].grid(True, linestyle='--', color='white', linewidth=1)
+
+# Plot 2
+axes[1].plot(time_state, D_traj, label='distance', color='g')
+axes[1].legend()
+axes[1].set_facecolor((0.95, 0.95, 0.95))
+axes[1].grid(True, linestyle='--', color='white', linewidth=1)
+
+# Plot 3
+axes[2].plot(time_input, u_traj, label='acceleration', color='r')
+axes[2].legend()
+axes[2].set_facecolor((0.95, 0.95, 0.95))
+axes[2].grid(True, linestyle='--', color='white', linewidth=1)
+
+# Set x-axis label only on the last plot
+axes[2].set_xlabel('Time')
+
+# Improve spacing
+plt.tight_layout()
+
+# Show plot
+plt.show()
 

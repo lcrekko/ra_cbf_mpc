@@ -10,75 +10,89 @@ from nmpc.diverse_functions import acc_dynamics
 from nmpc.controller import MPCController
 from rls.rls_main import RLS_constant
 
-def simulate_regret(controller: MPCController, rls_estimator: RLS_constant,
-                    x0: np.ndarray, para_0, para_star, H_para, h_para,
-                    Q, R,
-                    disturbance, dt, T_max):
+class SimulateRegret():
     """
-    This function simulates the system dynamics over a specified time horizon
-    using the MPC controller and the RLS estimator to generate regret data.
-    Parameters: 
-        controller: MPCController instance [class instance]
-        rls_estimator: RLS_constant instance [class instance]
+    This is the class for simulating the regret, it has 4 functions
 
-        x0: initial state vector [nparray]
-        para_0: initial parameter estimate [nparray]
-        para_star: true parameter values [nparray]
-        H_para: parameter matrix for RLS [nparray 2D]
-        h_para: parameter bounds for RLS [nparray 1D]
-
-        Q: state weighting matrix [nparray 2D]
-        R: input weighting matrix [nparray 1D]
-        
-        disturbance: disturbance vector to be applied [nparray X_DIM * T_max]
-        dt: sampling time [float]
-        T_max: maximum simulation time [int]
+    1) initialization
+    1) nominal MPC simulator
+    2) adaptive MPC simulator
+    3) regret calculator
     """
-    # Initialize state and parameter estimates with dummy values
-    dim_x = x0.shape[0]  # Dimension of the state vector
-    x_alg = np.zeros((dim_x, T_max+1))  # Adaptive control state
-    x_opt = np.zeros((dim_x, T_max+1))
-    x_alg[:, 0] = x0  # Set the initial state for adaptive control
-    x_opt[:, 0] = x0  # Set the initial state for optimal control
-    para = para_0
-    H = H_para
-    h = h_para
-
-    # Initialize the cumulative regret
-    regret = np.zeros(T_max)
-
-    for t in range(T_max):
-        # Get the current disturbance
-        d = disturbance[:, t]
-
-        # ----------- Control Input Computation -----------
-        u_alg = controller.solve_closed(x_alg[:, t], para) # certainty-equivalent learning-based mpc
-        u_alg = np.atleast_1d(u_alg)
+    def __init__(self, controller: MPCController, rls_estimator: RLS_constant,
+                 x0: np.ndarray, para_star, dim_u,
+                 Q, R,
+                 dt, T_max):
+        """
+        The initialization function that used to specify common input
+        arguments for the MPC simulations
+        Parameters: 
         
-        u_opt = controller.solve_closed(x_alg[:, t], para_star) # expert mpc
-        u_opt = np.atleast_1d(u_opt)
+        1) controller: MPCController instance [class instance]
+        2) rls_estimator: RLS_constant instance [class instance]
 
-        # ----------- State Update ------------
-        # Both updates use the true dynamics and the common disturbance
-        x_alg[:, t+1] = acc_dynamics(x_alg[:, t], u_alg, dt, para_star, mode="SIM") + dt * d
+        3) x0: initial state vector [nparray]
+        4) para_star: true parameter values [nparray]
+        5) dim_u: input dimension [int]
 
-        x_opt[:, t+1] = acc_dynamics(x_opt[:, t], u_opt, dt, para_star, mode="SIM") + dt * d
+        6) Q: state weighting matrix [nparray]
+        7) R: input weighting matrix [nparray]
+        
+        8) dt: sampling time [float]
+        9) T_max: simulation step [int]
+        """
 
-        # ----------- RLS Update -----------
-        # update the parameter estimate and parameter set estiamte
-        para_prior, _ = rls_estimator.update_para(x_alg[:, t+1], x_alg[:, t], u_alg, para, t+1)
-        H_new, h_new = rls_estimator.update_paraset(x_alg[:, t+1], x_alg[:, t], u_alg, H, h, t+1)
-        para = rls_estimator.projection(H, h, para_prior)
+        # passing parameters
+        self.mpc = controller
+        self.rls = rls_estimator
+        self.x0 = x0
+        self.Q = Q
+        self.R = R
+        self.para_star = para_star
+        self.dt = dt
+        self.T = T_max
 
-        # ----------- Regret Calculation -----------
-        cost_alg = x_alg[:, t].T @ Q @ x_alg[:, t] + u_alg.T @ R @ u_alg
-        cost_opt = x_opt[:, t].T @ Q @ x_opt[:, t] + u_opt.T @ R @ u_opt
+        # other useful constants
+        self.dim_x = x0.shape[0]
+        self.dim_u = dim_u
+    
+    def nominal_mpc_sim(self, disturbance):
+        """
+        This function simulates the nominal MPC and returns the 
+        closed-loop state and input trajectories, and
+        the accumulative cost trajectory
 
-        regret[t] = regret[t-1] + cost_alg - cost_opt
+        Input:
+            1) disturbance: disturbance vector to be applied [nparray X_DIM * T_max]
+        
+        Output: dictionary
+            1) x_traj
+            2) u_traj
+            3) cost
+        """
+        # Initialize the state and input vector
+        x_opt = np.zeros((self.dim_x, self.T+1))
+        u_opt = np.zeros((self.dim_u, self.T))
 
-        # Update the matrices for describing the uncertainty set
-        H = H_new
-        h = h_new
+        # Initialize the accumulative cost
+        cost_opt = np.zeros(self.T)
 
-        return {"regret": regret, "x_alg": x_alg, "x_opt": x_opt}
+        # Set the initial state for optimal control
+        x_opt[:, 0] = self.x0
+
+        # ----------- MPC simulation ----------
+        for t in range(self.T):
+            # Get the current disturbance
+            d = disturbance[:, t]
+            
+            # Compute the input
+            u_opt[:, t] = self.mpc.solve_closed(x_opt[:, t], self.para_star) # expert mpc
+
+            # State update
+            x_opt[:, t+1] = acc_dynamics(x_opt[:, t], u_opt[:, t],
+                                         self.dt, self.para_star, mode="SIM") + self.dt * d
+            cost_opt[t] = x_opt[:, t].T @ self.Q @ x_opt[:, t] + u_opt[:, t].T @ self.R @ u_opt[:, t]
+        
+        return {"x_traj": x_opt, "u_traj": u_opt, "cost": cost_opt}
+    
 

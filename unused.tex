@@ -16,3 +16,126 @@ print("Control input is:", u_0)
 
 print("The posterior estimate", f_posterior)
 """
+
+
+# ------------- One-step MPC Simulation --------------
+
+# initialize the MPC controller
+ampc_controller = MPCController(N, DT,
+                                X_DIM, U_DIM,
+                                X_REF, U_REF,
+                                -U_LIM, U_LIM,
+                                Q, R, P,
+                                acc_dynamics, NUM_PARA)
+
+# solve the mpc to get the first input
+u_0 = ampc_controller.solve_closed(X_INITIAL, PARA_STAR)
+
+# simulate the system with the first input to get the next state
+x_plus = acc_dynamics(X_INITIAL, u_0, DT, PARA_STAR) + DT * w_sim[:, 0] # type: ignore
+
+u_1 = ampc_controller.solve_closed(x_plus, PARA_STAR)
+
+u_1 = np.atleast_1d(u_1)
+
+print("Control input 1 is:", np.shape(u_1))
+print("Control input 1 is:", type(u_1))
+print(u_1.T @ R @ u_1)  # should be a scalar value
+
+
+# ---------------- OLD Regret simulation function --------------------
+
+def simulate_regret(controller: MPCController, rls_estimator: RLS_constant,
+                    x0: np.ndarray, para_0, para_star, H_para, h_para,
+                    Q, R,
+                    disturbance, dt, T_max):
+    """
+    This function simulates the system dynamics over a specified time horizon
+    using the MPC controller and the RLS estimator to generate regret data.
+    Parameters: 
+        controller: MPCController instance [class instance]
+        rls_estimator: RLS_constant instance [class instance]
+
+        x0: initial state vector [nparray]
+        para_0: initial parameter estimate [nparray]
+        para_star: true parameter values [nparray]
+        H_para: parameter matrix for RLS [nparray 2D]
+        h_para: parameter bounds for RLS [nparray 1D]
+
+        Q: state weighting matrix [nparray 2D]
+        R: input weighting matrix [nparray 1D]
+        
+        disturbance: disturbance vector to be applied [nparray X_DIM * T_max]
+        dt: sampling time [float]
+        T_max: maximum simulation time [int]
+    """
+    # Initialize state and parameter estimates with dummy values
+    dim_x = x0.shape[0]  # Dimension of the state vector
+    x_alg = np.zeros((dim_x, T_max+1))  # Adaptive control state
+    x_opt = np.zeros((dim_x, T_max+1))
+    x_alg[:, 0] = x0  # Set the initial state for adaptive control
+    x_opt[:, 0] = x0  # Set the initial state for optimal control
+    para = para_0
+    H = H_para
+    h = h_para
+
+    # Initialize the cumulative regret
+    regret = np.zeros(T_max)
+
+    for t in range(T_max):
+        # Get the current disturbance
+        d = disturbance[:, t]
+
+        # ----------- Control Input Computation -----------
+        u_alg = controller.solve_closed(x_alg[:, t], para) # certainty-equivalent learning-based mpc
+        u_alg = np.atleast_1d(u_alg)
+        
+        u_opt = controller.solve_closed(x_alg[:, t], para_star) # expert mpc
+        u_opt = np.atleast_1d(u_opt)
+
+        # ----------- State Update ------------
+        # Both updates use the true dynamics and the common disturbance
+        x_alg[:, t+1] = acc_dynamics(x_alg[:, t], u_alg, dt, para_star, mode="SIM") + dt * d
+
+        x_opt[:, t+1] = acc_dynamics(x_opt[:, t], u_opt, dt, para_star, mode="SIM") + dt * d
+
+        # ----------- RLS Update -----------
+        # update the parameter estimate and parameter set estiamte
+        para_prior, _ = rls_estimator.update_para(x_alg[:, t+1], x_alg[:, t], u_alg, para, t+1)
+        H_new, h_new = rls_estimator.update_paraset(x_alg[:, t+1], x_alg[:, t], u_alg, H, h, t+1)
+        para = rls_estimator.projection(H, h, para_prior)
+
+        # ----------- Regret Calculation -----------
+        cost_alg = x_alg[:, t].T @ Q @ x_alg[:, t] + u_alg.T @ R @ u_alg
+        cost_opt = x_opt[:, t].T @ Q @ x_opt[:, t] + u_opt.T @ R @ u_opt
+
+        regret[t] = regret[t-1] + cost_alg - cost_opt
+
+        # Update the matrices for describing the uncertainty set
+        H = H_new
+        h = h_new
+
+        return {"regret": regret, "x_alg": x_alg, "x_opt": x_opt}
+
+    
+# -------------- Plot the regret ----------------
+fig_width = 8
+gold_ratio = 0.5 * (np.sqrt(5) - 1)
+fig_size = (fig_width, fig_width * gold_ratio)
+tab_color = (0.8901960784313725, 0.4666666666666667, 0.7607843137254902)
+info_text = {"x_label": r'$T$',
+             "y_label": r'$\mathrm{Reg}_T$',
+             "legend": 'Mean'}
+info_font = {"ft_type": "Computer Modern Roman",
+             "ft_size_label": fig_width * 4, "ft_size_legend": fig_width * 4, "ft_size_tick": fig_width * 3}
+
+
+out_fig = plt.figure(figsize=fig_size)
+ax = out_fig.add_subplot(1, 1, 1)
+myplotter = RegretPlotter(ax, time_plot, regret_table, 
+                          info_text, info_font, tab_color)
+myplotter.plot_unified()
+plt.tight_layout()
+plt.savefig("regret_acc.pdf", format="pdf",
+            dpi=800, bbox_inches='tight', pad_inches=0.3)
+plt.show()

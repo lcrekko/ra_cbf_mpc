@@ -12,7 +12,7 @@ from nmpc.diverse_functions import acc_dynamics, acc_kernel, acc_f, acc_g
 # from optimization_utils.metric import max_l1_deviation_value
 from rls.rls_main import RLS_constant
 from rls.rls_utils import interleave_vec, interleave_diag
-from plotters.simulation import simulate_regret
+# from plotters.simulation import simulate_regret
 from plotters.utils import RegretPlotter
 
 # ------------- Controller Parameters --------------
@@ -95,40 +95,4 @@ MU_0 = 0.05
 # initialize the RLS estimator
 my_rls = RLS_constant(NUM_PARA, MU_0, acc_kernel, acc_f, acc_g, H_w)
 
-# ------------- Run the simulation to obtain regret data --------------
-
-# initialize the regret data array
-regret_table = np.zeros((NUM_SIM, T_step))
-speed_table = np.zeros((NUM_SIM, T_step+1))
-
-for i in range(NUM_SIM):
-    # simulate the regret for each simulation run
-    sim_data = simulate_regret(ampc_controller, my_rls, 
-                                                x_initial, para_0, para_star, H_para, h_para, 
-                                                Q, R, 
-                                                w_sim[:, :, i], dt, T_step)
-    # store the regret data
-    regret_table[i, :] = sim_data["regret"]
-    speed_table[i, :] = sim_data["x_opt"][0, :]  # store the speed data for each simulation run
-
-# -------------- Plot the regret ----------------
-fig_width = 8
-gold_ratio = 0.5 * (np.sqrt(5) - 1)
-fig_size = (fig_width, fig_width * gold_ratio)
-tab_color = (0.8901960784313725, 0.4666666666666667, 0.7607843137254902)
-info_text = {"x_label": r'$T$',
-             "y_label": r'$\mathrm{Reg}_T$',
-             "legend": 'Mean'}
-info_font = {"ft_type": "Computer Modern Roman",
-             "ft_size_label": fig_width * 4, "ft_size_legend": fig_width * 4, "ft_size_tick": fig_width * 3}
-
-
-out_fig = plt.figure(figsize=fig_size)
-ax = out_fig.add_subplot(1, 1, 1)
-myplotter = RegretPlotter(ax, time_plot, regret_table, 
-                          info_text, info_font, tab_color)
-myplotter.plot_unified()
-plt.tight_layout()
-plt.savefig("regret_acc.pdf", format="pdf",
-            dpi=800, bbox_inches='tight', pad_inches=0.3)
-plt.show()
+# ------------- Run the simulation to obtain regret data -------------
