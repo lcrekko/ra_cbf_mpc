@@ -53,7 +53,7 @@ class RLS_constant:
             mu_t = np.min( [self.mu, 1 / (np.linalg.norm(phi_x_t, 2) + 1e-6) ] )
 
         # compute the estimated state
-        u_polish = np.asarray(u_pre).flatten()
+        u_polish = u_pre.flatten()
 
         hat_x_now = self.f(x_pre) + self.g(x_pre) @ u_polish - phi_x_t.T @ theta_pre
 

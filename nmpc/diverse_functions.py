@@ -55,7 +55,7 @@ def acc_dynamics(x, u, dt = 0.01, para=np.zeros(3), mode="SIM"):
         dot_D = v_0 - x[0]
         x_next = ca.vertcat(x[0] + dot_v * dt, x[1] + dot_D * dt)
     elif mode == "SIM":
-        dot_v = 0 - 1 / m * (para[0] + para[1] * x[0] + para[2] * (x[0] ** 2)) + 1 / m * u
+        dot_v = 0 - 1 / m * (para[0] + para[1] * x[0] + para[2] * (x[0] ** 2)) + 1 / m * u[0]
         dot_D = v_0 - x[0]
         x_next = np.array([x[0] + dot_v * dt, x[1] + dot_D * dt])
     else:

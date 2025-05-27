@@ -1,5 +1,5 @@
 """
-This script is a test script for the MPC submodule
+This script is a test script for the submodules
 
 The below example is for adaptive cruise control, the initial state 
 is estimated from the Figure 1 in the paper **Adaptive Safety with 
@@ -7,9 +7,9 @@ Control Barrier Functions** by A.J. Taylor and A.D. Ames
 """
 import numpy as np
 from nmpc.controller import MPCController
-from nmpc.diverse_functions import acc_dynamics, acc_kernel, acc_f, acc_g
+from nmpc.diverse_functions import acc_dynamics
 # from optimization_utils.metric import max_l1_deviation_value
-from rls.rls_main import RLS_constant
+# from rls.rls_main import RLS_constant
 from rls.rls_utils import interleave_vec, interleave_diag
 
 # ------------- Controller Parameters --------------
@@ -20,6 +20,7 @@ N = 5
 # weighting matrices
 Q = np.array([[1, 0], [0, 1e-3]]) # the distance D is not heavily penalized
 R = 1e-3 # the input is not heavily penalized, so tracking u_ref = 0 is not prioritized
+R = np.atleast_2d(R)
 P = 2 * Q 
 
 # ------------- System parameters & Control Objective -------------
@@ -80,28 +81,19 @@ ampc_controller = MPCController(N, DT,
                                 X_REF, U_REF,
                                 -U_LIM, U_LIM,
                                 Q, R, P,
-                                acc_dynamics)
+                                acc_dynamics, NUM_PARA)
 
 # solve the mpc to get the first input
-u_0 = ampc_controller.solve_closed(X_INITIAL, PARA_0)
+u_0 = ampc_controller.solve_closed(X_INITIAL, PARA_STAR)
 
 # simulate the system with the first input to get the next state
 x_plus = acc_dynamics(X_INITIAL, u_0, DT, PARA_STAR) + DT * w_sim[:, 0] # type: ignore
 
-# -------------- RLS Identification Simulation ---------------
+u_1 = ampc_controller.solve_closed(x_plus, PARA_STAR)
 
-# set a default learning rate
-MU_0 = 0.5
+u_1 = np.atleast_1d(u_1)
 
-# initialize the RLS instance
-my_rls = RLS_constant(NUM_PARA, MU_0, acc_kernel, acc_f, acc_g, H_w)
-
-# update the parameter estimate and parameter set estiamte
-f_prior, f_add = my_rls.update_para(x_plus, X_INITIAL, u_0, PARA_0, 1)
-H_f, h_f = my_rls.update_paraset(x_plus, X_INITIAL, u_0, H_para, h_para, 1)
-f_posterior = my_rls.projection(H_f, h_f, f_prior)
-
-print("Control input is:", u_0)
-
-print("The posterior estimate", f_posterior)
+print("Control input 1 is:", np.shape(u_1))
+print("Control input 1 is:", type(u_1))
+print(u_1.T @ R @ u_1)  # should be a scalar value
 

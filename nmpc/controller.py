@@ -9,7 +9,7 @@ The controller uses CasADi for symbolic modeling and the optimizer within CasADi
 """
 
 import casadi as ca
-import numpy as np
+# import numpy as np
 
 class MPCController:
     """
@@ -23,7 +23,7 @@ class MPCController:
                  x_ref, u_ref,
                  umin, umax,
                  Q, R, P,
-                 dynamics):
+                 dynamics, num_para):
         """
         Initialize the MPC controller.
 
@@ -40,6 +40,7 @@ class MPCController:
             R: numpy array, input weighting matrix
             P: numpy array, final state weighting matrix
             dynamics: function, discrete-time dynamics function
+            num_para: int, number of parameters in the dynamics function
         """
         self.N = horizon
         self.d_t = d_t
@@ -63,6 +64,8 @@ class MPCController:
 
         # Parameter for the initial state
         self.X0 = self.opti.parameter(x_dim)
+        # Parameter for the dynamics function
+        self.para = self.opti.parameter(num_para)
         # Initial condition constraint
         self.opti.subject_to(self.X[:,0] == self.X0)
 
@@ -73,6 +76,10 @@ class MPCController:
             diff_x = self.X[:, k] - x_ref
             diff_u = self.U[:, k] - u_ref
             self.obj += ca.mtimes([diff_x.T, Q, diff_x]) + ca.mtimes([diff_u.T, R, diff_u])
+
+            # Dynamics constraint: x_{k+1} = f(x_k, u_k, para_k)
+            x_next = self.dynamics(self.X[:, k], self.U[:, k], self.d_t, self.para, "NLP")
+            self.opti.subject_to(self.X[:, k+1] == x_next)
 
             # Input constraints (elementwise)
             self.opti.subject_to(self.umin <= self.U[:, k])
@@ -102,13 +109,13 @@ class MPCController:
         Returns:
             u_0: numpy array, the first control action.
         """
-        # Dynamics constraint: x_{k+1} = f(x_k, u_k)
-        for k in range(self.N):
-            x_next = self.dynamics(self.X[:, k], self.U[:, k], self.d_t, para, "NLP")
-            self.opti.subject_to(self.X[:, k+1] == x_next)
 
         # Set the initial state parameter value
         self.opti.set_value(self.X0, x0_val)
+
+        # Set the parameter value for the dynamics function
+        self.opti.set_value(self.para, para)
+
         # Solve the optimization problem
         sol = self.opti.solve()
         # Extract the first control input

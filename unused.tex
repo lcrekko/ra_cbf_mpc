@@ -1,0 +1,18 @@
+"""
+# -------------- RLS Identification Simulation ---------------
+
+# set a default learning rate
+MU_0 = 0.5
+
+# initialize the RLS instance
+my_rls = RLS_constant(NUM_PARA, MU_0, acc_kernel, acc_f, acc_g, H_w)
+
+# update the parameter estimate and parameter set estiamte
+f_prior, f_add = my_rls.update_para(x_plus, X_INITIAL, u_0, PARA_0, 1)
+H_f, h_f = my_rls.update_paraset(x_plus, X_INITIAL, u_0, H_para, h_para, 1)
+f_posterior = my_rls.projection(H_f, h_f, f_prior)
+
+print("Control input is:", u_0)
+
+print("The posterior estimate", f_posterior)
+"""
