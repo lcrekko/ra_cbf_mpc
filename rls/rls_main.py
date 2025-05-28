@@ -15,7 +15,7 @@ class RLS_constant:
 
         List of parameters:
         0. n_theta: dimension of the unknown parameter
-        1. my_cov: the constant learning rate
+        1. my_mu: the constant learning rate
         2. my_kernel: the kernel function
         3. f: drift function in x^+ = f(x) + g(x)u
         4. g: input-coupling function in x^+ = f(x) + g(x)u

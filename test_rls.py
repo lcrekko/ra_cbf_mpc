@@ -94,54 +94,27 @@ MU_0 = 0.5
 # initialize the RLS instance
 my_rls = RLS_constant(num_para, MU_0, acc_kernel, acc_f, acc_g, H_w)
 
-my_sim = SimulateRegret(my_mpc, my_rls,
-                        x_0, para_star, u_dim,
-                        Q, R,
-                        dt, T_step)
+u_0 = my_mpc.solve_closed(x_0, para_0)
 
-# out_opt = my_sim.nominal_mpc_sim(w_sim)
-out_alg = my_sim.learning_mpc_sim(w_sim, para_0, H_para, h_para)
+u_0 = np.asarray(u_0)  # ensure u_0 is a numpy array
+u_0 = u_0.reshape((u_dim,))  # ensure u_0 is a column vector
 
-# ------------- Plotting the results -----------------
-# v_traj_opt = out_opt["x_traj"][0, :]
-# D_traj_opt = out_opt["x_traj"][1, :]
-# u_traj_opt = out_opt["u_traj"][0, :]
+print("Initial input:", u_0)
 
-v_traj_alg = out_alg["x_traj"][0, :]
-D_traj_alg = out_alg["x_traj"][1, :]
-u_traj_alg = out_alg["u_traj"][0, :]
+x_next = acc_dynamics(x_0, u_0, dt, para_star, mode="SIM") + dt * w_sim[:, 0] # type: ignore
 
-# Create subplots (3 rows, 1 column)
-fig, axes = plt.subplots(3, 1, figsize=(10, 8))
+print("Next state:", x_next)
 
-# Plot 1
-# axes[0].plot(time_state, v_traj_opt, label='velocity (OPT)')
-axes[0].plot(time_state, v_traj_alg, label='velocity (ALG)')
-axes[0].set_title("Adaptive Cruise Control using MPC")
-axes[0].legend()
-axes[0].set_facecolor((0.95, 0.95, 0.95))
-axes[0].grid(True, linestyle='--', color='white', linewidth=1)
+# update the parameter estimate and parameter set estiamte
+para_prior, _ = my_rls.update_para(x_next, x_0, u_0, para_0, 1)
 
-# Plot 2
-# axes[1].plot(time_state, D_traj_opt, label='distance (OPT)')
-axes[1].plot(time_state, D_traj_alg, label='distance (ALG)')
-axes[1].legend()
-axes[1].set_facecolor((0.95, 0.95, 0.95))
-axes[1].grid(True, linestyle='--', color='white', linewidth=1)
+print("Prior parameter estimate:", para_prior)
 
-# Plot 3
-# axes[2].plot(time_state, u_traj_opt, label='force (OPT)')
-axes[2].plot(time_state, u_traj_alg, label='force (ALG)')
-axes[2].legend()
-axes[2].set_facecolor((0.95, 0.95, 0.95))
-axes[2].grid(True, linestyle='--', color='white', linewidth=1)
+H_f, h_f = my_rls.update_paraset(x_next, x_0, u_0, H_para, h_para, 1)
 
-# Set x-axis label only on the last plot
-axes[2].set_xlabel('Time')
+print("Updated H matrix:", H_f)
+print("Updated h vector:", h_f)
 
-# Improve spacing
-plt.tight_layout()
+para_next = my_rls.projection(H_f, h_f, para_prior)
 
-# Show plot
-plt.show()
-
+print("Posterior parameter estimate:", para_next)

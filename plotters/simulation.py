@@ -52,9 +52,12 @@ class SimulateRegret():
         self.dt = dt
         self.T = T_max
 
-        # other useful constants
+        # get state and input dimensions
         self.dim_x = x0.shape[0]
         self.dim_u = dim_u
+
+        # get parameter dimension
+        self.dim_para = para_star.shape[0]
     
     def nominal_mpc_sim(self, disturbance):
         """
@@ -91,8 +94,69 @@ class SimulateRegret():
             # State update
             x_opt[:, t+1] = acc_dynamics(x_opt[:, t], u_opt[:, t],
                                          self.dt, self.para_star, mode="SIM") + self.dt * d
+            # Compute the cost
             cost_opt[t] = x_opt[:, t].T @ self.Q @ x_opt[:, t] + u_opt[:, t].T @ self.R @ u_opt[:, t]
         
         return {"x_traj": x_opt, "u_traj": u_opt, "cost": cost_opt}
+    
+    def learning_mpc_sim(self, disturbance, para_0, H_para, h_para):
+        """
+        This function simulates the nominal MPC and returns the 
+        closed-loop state and input trajectories, and
+        the accumulative cost trajectory
+
+        Input:
+            1) disturbance: disturbance vector to be applied [nparray X_DIM * T_max]
+            2) para_0: initial parameter estimate [nparray]
+            3) H_para: initial H matrix describing the parameter set
+            4) h_para: initial h vector describing the parameter set
+        
+        Output: dictionary
+            1) x_traj
+            2) u_traj
+            3) cost
+        """
+        # Initialize the state and input vector
+        x_alg = np.zeros((self.dim_x, self.T+1))
+        u_alg = np.zeros((self.dim_u, self.T))
+
+        # Initialize the parameter estimate vector
+        para_est = np.zeros((self.dim_para, self.T+1))
+
+        # Initialize the accumulative cost
+        cost_alg = np.zeros(self.T)
+
+        # Set the initial state for optimal control
+        x_alg[:, 0] = self.x0
+
+        # Set the initial parameter estimate
+        para_est[:, 0] = para_0
+
+        # ----------- MPC and RLS simulation ----------
+        for t in range(self.T):
+            # Get the current disturbance
+            d = disturbance[:, t]
+            
+            # Compute the input
+            u_alg[:, t] = self.mpc.solve_closed(x_alg[:, t], para_est[:, t])
+
+            # State update
+            x_alg[:, t+1] = acc_dynamics(x_alg[:, t], u_alg[:, t],
+                                         self.dt, self.para_star, mode="SIM") + self.dt * d
+            # Compute the cost
+            cost_alg[t] = x_alg[:, t].T @ self.Q @ x_alg[:, t] + u_alg[:, t].T @ self.R @ u_alg[:, t]
+
+            # ---------- RLS update ----------
+            # prior parameter estimate
+            para_prior, _ = self.rls.update_para(x_alg[:, t+1], x_alg[:, t], u_alg[:, t], para_est[:, t], t+1)
+            # update the parameter set
+            H_temp, h_temp = self.rls.update_paraset(x_alg[:, t+1], x_alg[:, t], u_alg[:, t], H_para, h_para, 1)
+            # projection for the posterior parameter estimate
+            para_est[:, t+1] = self.rls.projection(H_temp, h_temp, para_prior)
+
+            # test
+            print("round:", t)
+        
+        return {"x_traj": x_alg, "u_traj": u_alg, "cost": cost_alg, "para_est": para_est}
     
 

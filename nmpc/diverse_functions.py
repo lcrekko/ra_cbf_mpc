@@ -33,7 +33,7 @@ import numpy as np
 
 ## ----------------------- Adaptive Cruise Control ----------------------------
 
-def acc_dynamics(x, u, dt = 0.1, para=np.zeros(3), mode="SIM"):
+def acc_dynamics(x, u, para: np.ndarray = np.zeros(3), dt = 0.1, mode="SIM"):
     """
     Compute the next state based on the NOMINAL discrete-time model.
 
@@ -63,7 +63,7 @@ def acc_dynamics(x, u, dt = 0.1, para=np.zeros(3), mode="SIM"):
 
     return x_next
 
-def acc_f(x, dt = 0.01, mode="SIM"):
+def acc_f(x, dt = 0.1, mode="SIM"):
     """
     This is the drift term of the dynamics
 
@@ -71,7 +71,7 @@ def acc_f(x, dt = 0.01, mode="SIM"):
     1) x: state
     2) dt: sampling time
     """
-    v_0 = 13.89 # front vehicle speed
+    v_0 = 18 # front vehicle speed
 
     dot_v_x = 0
     dot_D_x = v_0 - x[0]
@@ -118,13 +118,15 @@ def acc_kernel(x, dt = 0.1, mode="SIM"):
             So, here it needs to be tranposed again
 
     """
+    m = 1650.0 # vehicle mass
+
     if mode == "NLP":
-        row1 = ca.horzcat(1.0, 0.0)
-        row2 = ca.horzcat(x[0], 0.0)
-        row3 = ca.horzcat(x[0]**2, 0.0)
+        row1 = ca.horzcat(1.0 / m, 0.0)
+        row2 = ca.horzcat(x[0] / m, 0.0)
+        row3 = ca.horzcat(x[0]**2 / m, 0.0)
         return ca.vertcat(row1, row2, row3)
     elif mode == "SIM":
-        return dt * np.array([[1.0, 0.0], [x[0], 0.0], [x[0]**2, 0.0]])
+        return (1 / m) * dt * np.array([[1.0, 0.0], [x[0], 0.0], [x[0]**2, 0.0]])
     else:
         raise ValueError("Invalid input! Please use 'NLP' for optimizatoin or 'SIM' for simulation.")
 

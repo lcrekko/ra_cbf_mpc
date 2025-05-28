@@ -24,7 +24,7 @@ def interleave_diag(lb_vec, ub_vec):
     2) ub_vec: upper bound vector for each entry of w [array]
 
     Output:
-    H_w [array]
+    H_w [nparray]
 
     Build the 2n * n matrix
         [ 1/u1  0   …      0 ]
@@ -55,26 +55,26 @@ def interleave_vec(lb_vec, ub_vec):
     """
     This function generates the vector h_theta to describe the set
     {
-    H_w * w <= h_theta 
+    H_theta * theta <= h_theta 
     }
     given that the disturbance is box constrained
     and the origin is in the iterior
 
     Input:
-    1) lb_vec: lower bound vector for each entry of w [array]
-    2) ub_vec: upper bound vector for each entry of w [array]
+    1) lb_vec: lower bound vector for each entry of theta [array]
+    2) ub_vec: upper bound vector for each entry of theta [array]
 
     Output:
     h_theta [array]
 
-    Build the 2n * n matrix
-        [ 1/u1 ]
-        [-1/v1 ]
-        [1/u2  ]
-        [-1/v2 ]
+    Build the 2n * 1 vector
+        [ u1 ]
+        [-v1 ]
+        [u2  ]
+        [-v2 ]
         [ ⋱ ]
-        [ 1/un ]
-        [ -1/vn ]
+        [ un ]
+        [ -vn ]
     given equal-length 1-D arrays u and v.
     """
     u = np.asarray(ub_vec)

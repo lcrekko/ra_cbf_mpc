@@ -34,7 +34,7 @@ def project_onto_feasible_set(A, b, x_star):
     x_star = np.asarray(x_star, dtype=float)
 
     # build the model
-    n = A.shape[1]
+    n = x_star.shape[0]
     model = gp.Model()
     model.setParam("OutputFlag", 0)  # Silence solver output
 
