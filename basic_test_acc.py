@@ -1,11 +1,11 @@
 """
-This is a debugging test script for RLS
+This is a debugging test script for adaptive cruise control
 """
 
 import numpy as np
 from rls.rls_main import RLS_constant
 from rls.rls_utils import interleave_vec, interleave_diag
-from nmpc.diverse_functions import acc_dynamics, acc_f, acc_g, acc_kernel
+from nmpc.diverse_functions import acc_dynamics, acc_f, acc_kernel
 
 # -------------- Test disturbance matrix generation ---------------
 # sampling time
