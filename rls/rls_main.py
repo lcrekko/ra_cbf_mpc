@@ -9,7 +9,7 @@ from optimization_utils.metric import project_onto_feasible_set
 
 
 class RLS_constant:
-    def __init__(self, n_theta, my_mu, my_kernel, f, dt, H_w, my_lambda = 1.0):
+    def __init__(self, n_theta, my_mu, my_kernel, f, dt, H_w):
         """
         This is the initialization of the RLS class with a constant covariance
 
@@ -20,7 +20,6 @@ class RLS_constant:
         3. f: nominal function in x^+ = f(x) + g(x)u
         4. dt: sampling time
         5. H_w: the matrix describing the disturbance polytope
-        6. my_lambda: the forgetting factor, default value is 1.0
         """
 
         # Assign the values and functions
@@ -30,7 +29,6 @@ class RLS_constant:
         self.f = f
         self.dt = dt
         self.H_w = H_w
-        self.my_lambda = my_lambda
     
     def update_para(self, x_now, x_pre, u_pre, theta_pre, t: int):
         """
@@ -55,11 +53,11 @@ class RLS_constant:
         # compute the estimated state
         # u_polish = u_pre.flatten()
 
-        hat_x_now = self.f(x_pre, u_pre, self.dt) - phi_t.T @ theta_pre
+        hat_x_now = self.f(x_pre, u_pre, self.dt) + phi_t.T @ theta_pre
 
         # parameter update
         theta_add = mu_t * phi_t @ (x_now - hat_x_now)
-        theta_now  = theta_pre - theta_add
+        theta_now  = theta_pre + theta_add
 
         return theta_now, theta_add
     
@@ -84,7 +82,7 @@ class RLS_constant:
             bias_t = x_now - self.f(x_pre, u_pre, self.dt)
 
             # compute the added rows for the new matrix and vector
-            H_theta_add = self.H_w @ self.kernel(x_pre, u_pre, self.dt).T
+            H_theta_add = -self.H_w @ self.kernel(x_pre, u_pre, self.dt).T
             h_theta_add = np.ones(self.H_w.shape[0]) - self.H_w @ bias_t
 
             # append and get the new matrix

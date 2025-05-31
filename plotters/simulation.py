@@ -6,7 +6,6 @@ for a specific disturbance realization and a given common initial state.
 """
 
 import numpy as np
-from nmpc.diverse_functions import acc_dynamics
 from nmpc.controller import MPCController
 from rls.rls_main import RLS_constant
 
@@ -19,7 +18,7 @@ class SimulateRegret():
     2) adaptive MPC simulator
     3) regret calculator
     """
-    def __init__(self, controller: MPCController, rls_estimator: RLS_constant,
+    def __init__(self, controller: MPCController, rls_estimator: RLS_constant, dynamics,
                  x0: np.ndarray, para_star, dim_u,
                  Q, R,
                  dt, T_max):
@@ -30,6 +29,7 @@ class SimulateRegret():
         
         1) controller: MPCController instance [class instance]
         2) rls_estimator: RLS_constant instance [class instance]
+        3) dynamics: the dynamic function
 
         3) x0: initial state vector [nparray]
         4) para_star: true parameter values [nparray]
@@ -45,6 +45,7 @@ class SimulateRegret():
         # passing parameters
         self.mpc = controller
         self.rls = rls_estimator
+        self.dynamics = dynamics
         self.x0 = x0
         self.Q = Q
         self.R = R
@@ -92,8 +93,8 @@ class SimulateRegret():
             u_opt[:, t] = self.mpc.solve_closed(x_opt[:, t], self.para_star) # expert mpc
 
             # State update
-            x_opt[:, t+1] = acc_dynamics(x_opt[:, t], u_opt[:, t],
-                                         self.dt, self.para_star, mode="SIM") + self.dt * d
+            x_opt[:, t+1] = self.dynamics(x_opt[:, t], u_opt[:, t],
+                                        self.para_star, self.dt, mode="SIM") + self.dt * d
             # Compute the cost
             cost_opt[t] = x_opt[:, t].T @ self.Q @ x_opt[:, t] + u_opt[:, t].T @ self.R @ u_opt[:, t]
         
@@ -131,6 +132,8 @@ class SimulateRegret():
 
         # Set the initial parameter estimate
         para_est[:, 0] = para_0
+        H_prior = H_para
+        h_prior = h_para
 
         # ----------- MPC and RLS simulation ----------
         for t in range(self.T):
@@ -141,8 +144,8 @@ class SimulateRegret():
             u_alg[:, t] = self.mpc.solve_closed(x_alg[:, t], para_est[:, t])
 
             # State update
-            x_alg[:, t+1] = acc_dynamics(x_alg[:, t], u_alg[:, t],
-                                         self.dt, self.para_star, mode="SIM") + self.dt * d
+            x_alg[:, t+1] = self.dynamics(x_alg[:, t], u_alg[:, t],
+                                         self.para_star, self.dt, mode="SIM") + self.dt * d
             # Compute the cost
             cost_alg[t] = x_alg[:, t].T @ self.Q @ x_alg[:, t] + u_alg[:, t].T @ self.R @ u_alg[:, t]
 
@@ -150,13 +153,19 @@ class SimulateRegret():
             # prior parameter estimate
             para_prior, _ = self.rls.update_para(x_alg[:, t+1], x_alg[:, t], u_alg[:, t], para_est[:, t], t+1)
             # update the parameter set
-            H_temp, h_temp = self.rls.update_paraset(x_alg[:, t+1], x_alg[:, t], u_alg[:, t], H_para, h_para, 1)
+            H_post, h_post = self.rls.update_paraset(x_alg[:, t+1], x_alg[:, t], u_alg[:, t], H_prior, h_prior, 1)
             # projection for the posterior parameter estimate
-            para_est[:, t+1] = self.rls.projection(H_temp, h_temp, para_prior)
-
-            # test
-            print("round:", t)
+            para_est[:, t+1] = self.rls.projection(H_post, h_post, para_prior)
+            
+            # update the prior matrix
+            H_prior, h_prior = H_post, h_post
         
         return {"x_traj": x_alg, "u_traj": u_alg, "cost": cost_alg, "para_est": para_est}
+    
+    def regret_final(self, cost_opt, cost_alg):
+        """
+        Compute the final regret using cumulative sum
+        """
+        return np.cumsum(cost_alg - cost_opt)
     
 

@@ -17,7 +17,8 @@ the number of the parameters depends on the used model.
 
 
 Two models will be considered:
-0）Adaptive linear control (an artificial numerical example)
+
+0) Adaptive linear control (an artificial numerical example)
 
 1) Adaptive cruise control (number of parameters: 3)
 
