@@ -102,3 +102,24 @@ def max_l1_deviation_value(A, b, x_star, tol=1e-6):
         raise RuntimeError(
             f"Gurobi did not reach OPTIMAL status (code {model.status})."
         )
+
+def polytope_inclusion(H_pre, h_pre):
+    """
+    This function returns a simplified polytope that contains
+    a more complicated polytope as its subset, used for polytopic
+    constraint set description, the core of this problem is a robust
+    optimization problem
+
+    Input:
+    1. H_pre: the previous H matrix
+    2. h_pre: the previous h vector
+
+    Output:
+    1. H_new: the simplified H matrix
+    2. h_new: the simplified h matrix
+    """
+    # ------- TO BE MODIFIED -------
+    H_new = H_pre
+    h_new = h_pre
+
+    return H_new, h_new

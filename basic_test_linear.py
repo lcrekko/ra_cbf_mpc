@@ -4,7 +4,7 @@ This is a debugging test script for adaptive linaer control
 
 import numpy as np
 import matplotlib.pyplot as plt
-from rls.rls_main import RLS_constant
+from rls.rls_main import RLSProjection
 from rls.rls_utils import interleave_vec, interleave_diag
 from nmpc.diverse_functions import linear_dynamics, linear_f, linear_kernel
 from nmpc.controller import MPCController
@@ -30,7 +30,7 @@ H_w = interleave_diag(-w_lim * np.ones(x_dim), w_lim * np.ones(x_dim))
 # --------------- Test parameter matrix generation ---------------
 num_para = 3
 para_0 = np.array([0.0, 0.0, 0.0])
-para_star = np.array([0.8, 0.45, -0.18])
+para_star = np.array([0.8, 0.5, -0.2])
 
 # parameter bound 
 LB_para = [-1, -1, -1]
@@ -70,18 +70,9 @@ my_mpc = MPCController(N, dt,
                        Q, R, P,
                        linear_dynamics, num_para)
 
-u_0 = my_mpc.solve_closed(x_0, para_0)
-
-# ------------- Test of the basic functions -----------------
-x_next = linear_dynamics(x_0, u_0, para_0)
-x_next_2 = linear_f(x_0, u_0) + linear_kernel(x_0, u_0).T @ para_0
-
-print("next state dynamics:", x_next)
-print("next state kernel:", x_next_2)
-
 # ------------- Basic test RLS --------------
 my_mu = 10
-my_rls = RLS_constant(num_para, my_mu, linear_kernel, linear_f, dt, H_w)
+my_rls = RLSProjection(num_para, x_dim, linear_f, linear_kernel, dt, H_w)
 
 T_sim = 500
 time_state = dt * np.arange(0, T_sim + 1)
@@ -170,15 +161,5 @@ axes_2[2].grid(True, linestyle='--', color='white', linewidth=1)
 # Set x-axis label only on the last plot
 axes_2[2].set_xlabel('Time')
 
-# Improve spacing
 plt.tight_layout()
-
-fig_3, axes_3 = plt.subplots(1, 1, figsize=(5, 4))
-axes_3.plot(time_input, regret, label='regret')
-axes_3.set_title("Regret")
-axes_3.legend()
-axes_3.set_facecolor((0.95, 0.95, 0.95))
-axes_3.grid(True, linestyle='--', color='white', linewidth=1)
-
-# Show plot
 plt.show()

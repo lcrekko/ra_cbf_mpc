@@ -7,7 +7,7 @@ for a specific disturbance realization and a given common initial state.
 
 import numpy as np
 from nmpc.controller import MPCController
-from rls.rls_main import RLS_constant
+from rls.rls_main import RLSProjection
 
 class SimulateRegret():
     """
@@ -18,7 +18,7 @@ class SimulateRegret():
     2) adaptive MPC simulator
     3) regret calculator
     """
-    def __init__(self, controller: MPCController, rls_estimator: RLS_constant, dynamics,
+    def __init__(self, controller: MPCController, rls_estimator: RLSProjection, dynamics,
                  x0: np.ndarray, para_star, dim_u,
                  Q, R,
                  dt, T_max):
@@ -100,7 +100,7 @@ class SimulateRegret():
         
         return {"x_traj": x_opt, "u_traj": u_opt, "cost": cost_opt}
     
-    def learning_mpc_sim(self, disturbance, para_0, H_para, h_para):
+    def learning_mpc_sim(self, disturbance, para_0, H_para, h_para, mu_0 = 1e3):
         """
         This function simulates the nominal MPC and returns the 
         closed-loop state and input trajectories, and
@@ -111,6 +111,7 @@ class SimulateRegret():
             2) para_0: initial parameter estimate [nparray]
             3) H_para: initial H matrix describing the parameter set
             4) h_para: initial h vector describing the parameter set
+            5) mu_0: initial covariance matrix, default is 1e3 (uncertain about the initial estimate)
         
         Output: dictionary
             1) x_traj
@@ -134,6 +135,7 @@ class SimulateRegret():
         para_est[:, 0] = para_0
         H_prior = H_para
         h_prior = h_para
+        cov = mu_0 * np.eye(self.dim_para)
 
         # ----------- MPC and RLS simulation ----------
         for t in range(self.T):
@@ -151,14 +153,17 @@ class SimulateRegret():
 
             # ---------- RLS update ----------
             # prior parameter estimate
-            para_prior, _ = self.rls.update_para(x_alg[:, t+1], x_alg[:, t], u_alg[:, t], para_est[:, t], t+1)
+            info_prior = self.rls.update_para(x_alg[:, t+1], x_alg[:, t], u_alg[:, t],
+                                                 para_est[:, t], cov, t+1)
             # update the parameter set
             H_post, h_post = self.rls.update_paraset(x_alg[:, t+1], x_alg[:, t], u_alg[:, t], H_prior, h_prior, 1)
             # projection for the posterior parameter estimate
-            para_est[:, t+1] = self.rls.projection(H_post, h_post, para_prior)
+            para_est[:, t+1] = self.rls.projection(H_post, h_post, info_prior["para"])
             
             # update the prior matrix
             H_prior, h_prior = H_post, h_post
+            # para_est[:, t+1] = info_prior["para"]
+            cov = info_prior["cov"]
         
         return {"x_traj": x_alg, "u_traj": u_alg, "cost": cost_alg, "para_est": para_est}
     

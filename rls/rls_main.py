@@ -5,32 +5,41 @@ Additional projection operation imposed by set-membership identification (SMI) i
 """
 
 import numpy as np
-from optimization_utils.metric import project_onto_feasible_set
+from optimization_utils.metric import project_onto_feasible_set, polytope_inclusion
 
 
-class RLS_constant:
-    def __init__(self, n_theta, my_mu, my_kernel, f, dt, H_w):
+class RLSProjection:
+    """
+    This class is the RLS estimator with projection operation after point estimate
+
+    It has 4 functions:
+    1. Initialization
+    2. Prior point update
+    3. SMID set update
+    4. projection
+    """
+    def __init__(self, n_theta, dim_x, f, my_kernel, dt, H_w):
         """
         This is the initialization of the RLS class with a constant covariance
 
         List of parameters:
-        0. n_theta: dimension of the unknown parameter
-        1. my_mu: the constant learning rate
-        2. my_kernel: the kernel function
+        1 n_theta: dimension of the unknown parameter
+        2 dim_x: state dimension
         3. f: nominal function in x^+ = f(x) + g(x)u
-        4. dt: sampling time
-        5. H_w: the matrix describing the disturbance polytope
+        4. my_kernel: the kernel function
+        5. dt: sampling time
+        6. H_w: the matrix describing the disturbance polytope
         """
 
         # Assign the values and functions
         self.n_theta = n_theta
-        self.mu = my_mu
+        self.dim_x = dim_x
         self.kernel = my_kernel
         self.f = f
         self.dt = dt
         self.H_w = H_w
     
-    def update_para(self, x_now, x_pre, u_pre, theta_pre, t: int):
+    def update_para(self, x_now, x_pre, u_pre, theta_pre, cov_pre, t: int):
         """
         This is the parameter update function
 
@@ -39,16 +48,23 @@ class RLS_constant:
         2. x_pre: the previous state (x_{t-1})
         3. u_pre: the previous input (u_{t-1})
         4. theta_pre: the previous parameter estimate (hat{theta}_{t-1})
+        5. cov_pre: the previous covariance matrix
         5. t: the running time [integer type]
+
+        Output: dictionary contains the following entries
+
+        1. "para", the updated parameter estimate
+        2. "diff", added revision
+        3. "cov", modified covariance matrix
         """
         # compute the kernel value
         phi_t = self.kernel(x_pre, u_pre, self.dt)
 
-        # compute the learning rate
+        # compute the gain
         if t == 0:
-            mu_t = 0
+            K = 0 * cov_pre
         else:
-            mu_t = np.min( [self.mu, 1 / (np.linalg.norm(phi_t, 2) + 1e-6) ] )
+            K = cov_pre @ phi_t @ np.linalg.inv(np.eye(self.dim_x) + phi_t.T @ cov_pre @ phi_t)
 
         # compute the estimated state
         # u_polish = u_pre.flatten()
@@ -56,10 +72,11 @@ class RLS_constant:
         hat_x_now = self.f(x_pre, u_pre, self.dt) + phi_t.T @ theta_pre
 
         # parameter update
-        theta_add = mu_t * phi_t @ (x_now - hat_x_now)
+        theta_add = K @ (x_now - hat_x_now)
         theta_now  = theta_pre + theta_add
+        cov_post = cov_pre - K @ phi_t.T @ cov_pre
 
-        return theta_now, theta_add
+        return {"para": theta_now, "diff": theta_add, "cov": cov_post}
     
     def update_paraset(self, x_now, x_pre, u_pre, H_theta_pre, h_theta_pre, t: int):
         """
@@ -86,8 +103,11 @@ class RLS_constant:
             h_theta_add = np.ones(self.H_w.shape[0]) - self.H_w @ bias_t
 
             # append and get the new matrix
-            H_theta_new = np.vstack((H_theta_pre, H_theta_add))
-            h_theta_new = np.hstack((h_theta_pre, h_theta_add))
+            H_theta_append = np.vstack((H_theta_pre, H_theta_add))
+            h_theta_append = np.hstack((h_theta_pre, h_theta_add))
+
+            # complexity_refined
+            H_theta_new, h_theta_new = polytope_inclusion(H_theta_append, h_theta_append)
 
         return H_theta_new, h_theta_new
     
