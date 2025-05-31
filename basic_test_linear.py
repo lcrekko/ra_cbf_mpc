@@ -83,7 +83,7 @@ print("next state kernel:", x_next_2)
 my_mu = 10
 my_rls = RLS_constant(num_para, my_mu, linear_kernel, linear_f, dt, H_w)
 
-T_sim = 100
+T_sim = 500
 time_state = dt * np.arange(0, T_sim + 1)
 time_input = dt * np.arange(0, T_sim)
 w_sim = np.random.uniform(-w_lim, w_lim, size=(x_dim, T_sim))
