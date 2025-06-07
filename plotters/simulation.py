@@ -93,7 +93,7 @@ class SimulateRegret():
             u_opt[:, t] = self.mpc.solve_closed(x_opt[:, t], self.para_star) # expert mpc
 
             # State update
-            x_opt[:, t+1] = self.dynamics(x_opt[:, t], u_opt[:, t],
+            x_opt[:, t+1] = self.dynamics(x_opt[:, t], u_opt[:, t] + np.sum(d),
                                         self.para_star, self.dt, mode="SIM") + self.dt * d
             # Compute the cost
             cost_opt[t] = x_opt[:, t].T @ self.Q @ x_opt[:, t] + u_opt[:, t].T @ self.R @ u_opt[:, t]
