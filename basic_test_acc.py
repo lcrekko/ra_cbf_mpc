@@ -1,5 +1,5 @@
 """
-This is a debugging test script for adaptive linaer control
+This is a debugging test script for adaptive cruise control
 """
 
 import numpy as np
@@ -8,15 +8,16 @@ from rls.rls_main import RLSProjection
 from rls.rls_utils import interleave_vec, interleave_diag
 from nmpc.diverse_functions import acc_dynamics, acc_f, acc_kernel
 from nmpc.controller import MPCController
-from plotters.simulation import SimulateRegret
+#from plotters.simulation import SimulateRegret
 
 # -------------- Test disturbance matrix generation ---------------
 
 # state and input dimensions
 dt = 0.1 # trivial sampling time
-x_dim = 2
+x_dim = 1
 u_dim = 1
 
+# large limit, no special constraints
 u_lim = 1e3
 
 # disturbance information
@@ -79,10 +80,10 @@ time_state = dt * np.arange(0, T_sim + 1)
 time_input = dt * np.arange(0, T_sim)
 w_sim = np.random.uniform(-w_lim, w_lim, size=(x_dim, T_sim))
 
-my_sim = SimulateRegret(my_mpc, my_rls, acc_dynamics,
-                        x_0, para_star, u_dim,
-                        Q, R,
-                        dt, T_sim)
+# my_sim = SimulateRegret(my_mpc, my_rls, acc_dynamics,
+#                         x_0, para_star, u_dim,
+#                         Q, R,
+#                         dt, T_sim)
 
 # out_sim_1 = my_sim.nominal_mpc_sim(w_sim)
 out_sim_2 = my_sim.learning_mpc_sim(w_sim, para_0, H_para, h_para, my_mu)

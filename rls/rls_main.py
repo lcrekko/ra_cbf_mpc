@@ -48,7 +48,7 @@ class RLSProjection:
         2. x_pre: the previous state (x_{t-1})
         3. u_pre: the previous input (u_{t-1})
         4. theta_pre: the previous parameter estimate (hat{theta}_{t-1})
-        5. cov_pre: the previous covariance matrix
+        5. lr: learning rate
         5. t: the running time [integer type]
 
         Output: dictionary contains the following entries
@@ -58,7 +58,7 @@ class RLSProjection:
         3. "cov", modified covariance matrix
         """
         # compute the kernel value
-        phi_t = self.kernel(x_pre, u_pre, self.dt)
+        phi_t = self.kernel(x_pre, self.dt)
 
         # compute the gain
         if t == 0:
@@ -69,14 +69,19 @@ class RLSProjection:
         # compute the estimated state
         # u_polish = u_pre.flatten()
 
-        hat_x_now = self.f(x_pre, u_pre, self.dt) + phi_t.T @ theta_pre
+        # compute the estimated next state
+        hat_x_now = self.f(x_pre, u_pre, self.dt) - phi_t.T @ theta_pre
 
-        # parameter update
-        theta_add = K @ (x_now - hat_x_now)
-        theta_now  = theta_pre + theta_add
+        # compute the parameter increments
+        theta_add = K @ (x_now - hat_x_now) # x_now is the measured next state
+
+        # update the parameter, and note there must be a minus to do the update
+        theta_now  = theta_pre - theta_add
+
+        # update the covariance
         cov_post = cov_pre - K @ phi_t.T @ cov_pre
 
-        return {"para": theta_now, "diff": theta_add, "cov": cov_post}
+        return {"para": theta_now, "diff": theta_add, "cov": cov_post, "inc_state": x_now - hat_x_now}
     
     def update_paraset(self, x_now, x_pre, u_pre, H_theta_pre, h_theta_pre, t: int):
         """

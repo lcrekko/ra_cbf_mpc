@@ -183,4 +183,76 @@ def acc_kernel(x, u, dt = 0.1, mode="SIM"):
         raise ValueError("Invalid input! Please use 'NLP' for optimizatoin or 'SIM' for simulation.")
 
 
+## ----------------------- Only speed ACC dynamics --------------------------
 
+def vacc_dynamics(x, u, para: np.ndarray = np.zeros(3), dt = 0.1, mode="SIM"):
+    """
+    Compute the next state based on the NOMINAL discrete-time model.
+
+    Parameters:
+        x: casadi.SX or MX, current state vector.
+        u: casadi.SX or MX, control input vector.
+        para: ndarray, estimated system parameters
+        dt: float, sampling time (default is 0.1 seconds)
+        mode: "NLP" or "SIM" depending on the purpose of usage:
+            1) "NLP" for optimization in MPC
+            2) "SIM" for simulation and general Numpy based calculations
+
+    Returns:
+        x_next: casadi.SX or MX, next state vector. (Or just numpy array)
+    """
+    m = 1650.0 # the mass of the vehicle [kg]
+    # v_0 = 18 # the speed of the leading vehicle on the autoweg [m /s ]
+    if mode == "NLP":
+        dot_v = 0 - 1 / m * (para[0] + para[1] * x[0] + para[2] * (x[0] ** 2)) + 1 / m * u
+        x_next = x[0] + dot_v * dt
+    elif mode == "SIM":
+        dot_v = 0 - 1 / m * (para[0] + para[1] * x[0] + para[2] * (x[0] ** 2)) + 1 / m * u
+        x_next = x[0] + dot_v * dt
+    else:
+        raise ValueError("Invalid input! Please use 'NLP' for optimizatoin or 'SIM' for simulation.")
+
+    return x_next
+
+def vacc_fg(x, u, dt = 0.1, mode="SIM"):
+    """
+    This is the dynamics term without kernel
+
+    Input
+    1) x: state
+    2) dt: sampling time
+    """
+    m = 1650.0 # vehicle mass
+    # v_0 = 18 # front vehicle speed
+    
+
+    dot_v_x = u[0] / m
+
+    if mode == "NLP":
+        return x[0] + dt * dot_v_x
+    elif mode == "SIM":
+        return x[0] + dt * dot_v_x
+    else:
+        raise ValueError("Invalid input! Please use 'NLP' for optimizatoin or 'SIM' for simulation.")
+    
+
+def vacc_kernel(x, dt = 0.1, mode="SIM"):
+    """
+    This is the kernel of the dynamics
+
+    Input
+    1) x: state
+    2) dt: sampling time
+
+    REMARK: be careful about the transpose given in the system dynamics.
+            So, here it needs to be tranposed again
+
+    """
+    m = 1650.0 # vehicle mass
+
+    if mode == "NLP":
+        return ca.vertcat(1.0 / m, x[0] / m, x[0] / m)
+    elif mode == "SIM":
+        return (1 / m) * dt * np.array([[1.0], [x[0]], [x[0]**2]])
+    else:
+        raise ValueError("Invalid input! Please use 'NLP' for optimizatoin or 'SIM' for simulation.")
