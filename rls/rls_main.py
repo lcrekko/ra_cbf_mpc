@@ -104,7 +104,7 @@ class RLSProjection:
             bias_t = x_now - self.f(x_pre, u_pre, self.dt)
 
             # compute the added rows for the new matrix and vector
-            H_theta_add = -self.H_w @ self.kernel(x_pre, u_pre, self.dt).T
+            H_theta_add = self.H_w @ self.kernel(x_pre, self.dt).T
             h_theta_add = np.ones(self.H_w.shape[0]) - self.H_w @ bias_t
 
             # append and get the new matrix

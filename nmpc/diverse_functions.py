@@ -102,7 +102,7 @@ def linear_kernel(x, u, dt = 1, mode="SIM"):
         raise ValueError("Invalid input! Please use 'NLP' for optimizatoin or 'SIM' for simulation.")
 
 
-## ----------------------- Adaptive Cruise Control ----------------------------
+## ----------------------- Adaptive Cruise Control (Ames Model) ----------------------------
 
 def acc_dynamics(x, u, para: np.ndarray = np.zeros(3), dt = 0.1, mode="SIM"):
     """
@@ -251,8 +251,91 @@ def vacc_kernel(x, dt = 0.1, mode="SIM"):
     m = 1650.0 # vehicle mass
 
     if mode == "NLP":
-        return ca.vertcat(1.0 / m, x[0] / m, x[0] / m)
+        return ca.vertcat(1.0 / m, x[0] / m, x[0]**2 / m)
     elif mode == "SIM":
         return (1 / m) * dt * np.array([[1.0], [x[0]], [x[0]**2]])
+    else:
+        raise ValueError("Invalid input! Please use 'NLP' for optimizatoin or 'SIM' for simulation.")
+    
+
+## ----------------------- Adaptive Cruise Control (Our model) ----------------------------
+
+def sacc_dynamics(x, u, para: np.ndarray = np.zeros(2), dt = 0.1, mode="SIM"):
+    """
+    Compute the next state based on the NOMINAL discrete-time model.
+
+    Parameters:
+        x: casadi.SX or MX, current state vector.
+        u: casadi.SX or MX, control input vector.
+        para: ndarray, estimated system parameters
+        dt: float, sampling time (default is 0.1 seconds)
+        mode: "NLP" or "SIM" depending on the purpose of usage:
+            1) "NLP" for optimization in MPC
+            2) "SIM" for simulation and general Numpy based calculations
+
+    Returns:
+        x_next: casadi.SX or MX, next state vector. (Or just numpy array)
+    """
+    m = 1650.0 # the mass of the vehicle [kg]
+    rolling = 125 # rolling force
+    viscous = 1 # viscous force coefficient
+    # the speed of the leading vehicle on the autoweg is one of the parameters
+    if mode == "NLP":
+        dot_v = 0 - 1 / m * (rolling + viscous * x[0] + para[0] * (x[0] ** 2)) + 1 / m * u[0]
+        dot_D = para[1] - x[0]
+        x_next = ca.vertcat(x[0] + dot_v * dt, x[1] + dot_D * dt)
+    elif mode == "SIM":
+        dot_v = 0 - 1 / m * (rolling + viscous * x[0] + para[0] * (x[0] ** 2)) + 1 / m * u[0]
+        dot_D = para[1] - x[0]
+        x_next = np.array([x[0] + dot_v * dt, x[1] + dot_D * dt])
+    else:
+        raise ValueError("Invalid input! Please use 'NLP' for optimizatoin or 'SIM' for simulation.")
+
+    return x_next
+
+def sacc_fg(x, u, dt = 0.1, mode="SIM"):
+    """
+    This is the drift term of the dynamics
+
+    Input
+    1) x: state
+    2) dt: sampling time
+    """
+    m = 1650.0 # vehicle mass
+    rolling = 125 # rolling force
+    viscous = 1 # viscous force coefficient
+    
+
+    dot_v_x = 0 - 1 / m * (rolling + viscous * x[0]) + 1 / m * u[0]
+    dot_D_x = - x[0]
+
+    if mode == "NLP":
+        return ca.vertcat(x[0] + dt * dot_v_x, x[1] + dt * dot_D_x)
+    elif mode == "SIM":
+        return np.array([x[0] + dt * dot_v_x, x[1] + dt * dot_D_x])
+    else:
+        raise ValueError("Invalid input! Please use 'NLP' for optimizatoin or 'SIM' for simulation.")
+    
+
+def sacc_kernel(x, dt = 0.1, mode="SIM"):
+    """
+    This is the kernel of the dynamics
+
+    Input
+    1) x: state
+    2) dt: sampling time
+
+    REMARK: be careful about the transpose given in the system dynamics.
+            So, here it needs to be tranposed again
+
+    """
+    m = 1650.0 # vehicle mass
+
+    if mode == "NLP":
+        row1 = ca.horzcat(x[0]**2 / m, 0.0)
+        row2 = ca.horzcat(0.0, -1.0)
+        return dt * ca.horzcat(row1, row2)
+    elif mode == "SIM":
+        return dt * np.array([[x[0]**2 / m, 0.0], [0.0, -1.0]])
     else:
         raise ValueError("Invalid input! Please use 'NLP' for optimizatoin or 'SIM' for simulation.")
