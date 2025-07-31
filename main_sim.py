@@ -4,7 +4,7 @@ This is regret simulation for adaptive linaer control
 
 import numpy as np
 import matplotlib.pyplot as plt
-from rls.rls_main import RLS_constant
+from rls.rls_main import RLSProjection
 from rls.rls_utils import interleave_vec, interleave_diag
 from nmpc.diverse_functions import linear_dynamics, linear_f, linear_kernel
 from nmpc.controller import MPCController
@@ -77,7 +77,7 @@ my_mpc = MPCController(N, dt,
 
 # ------------- RLS --------------
 my_mu = 10
-my_rls = RLS_constant(num_para, my_mu, linear_kernel, linear_f, dt, H_w)
+my_rls = RLSProjection(num_para, x_dim, linear_kernel, linear_f, dt, H_w)
 
 T_sim = 100
 N_sim = 100
@@ -85,7 +85,7 @@ time_regret = dt * np.arange(0, T_sim)
 w_sim = np.random.uniform(-w_lim, w_lim, size=(x_dim, T_sim, N_sim))
 
 my_sim = SimulateRegret(my_mpc, my_rls, linear_dynamics,
-                        x_0, para_star, u_dim,
+                        x_0, para_star,
                         Q, R,
                         dt, T_sim)
 

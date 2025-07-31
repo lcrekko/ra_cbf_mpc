@@ -5,7 +5,11 @@ Additional projection operation imposed by set-membership identification (SMI) i
 """
 
 import numpy as np
-from optimization_utils.metric import project_onto_feasible_set, polytope_inclusion
+from optimization_utils.metric import ( 
+    project_onto_feasible_set, 
+    max_l1_deviation_value, 
+    polytope_inclusion
+)
 
 
 class RLSProjection:
@@ -48,14 +52,12 @@ class RLSProjection:
         2. x_pre: the previous state (x_{t-1})
         3. u_pre: the previous input (u_{t-1})
         4. theta_pre: the previous parameter estimate (hat{theta}_{t-1})
-        5. lr: learning rate
         5. t: the running time [integer type]
 
         Output: dictionary contains the following entries
 
         1. "para", the updated parameter estimate
-        2. "diff", added revision
-        3. "cov", modified covariance matrix
+        2. "cov", modified covariance matrix
         """
         # compute the kernel value
         phi_t = self.kernel(x_pre, self.dt)
@@ -66,7 +68,6 @@ class RLSProjection:
         else:
             K = cov_pre @ phi_t @ np.linalg.inv(np.eye(self.dim_x) + phi_t.T @ cov_pre @ phi_t)
 
-        # compute the estimated state
         # u_polish = u_pre.flatten()
 
         # compute the estimated next state
@@ -75,13 +76,13 @@ class RLSProjection:
         # compute the parameter increments
         theta_add = K @ (x_now - hat_x_now) # x_now is the measured next state
 
-        # update the parameter, and note there must be a minus to do the update
+        # update the parameter, and note the update is with a MINUS sign
         theta_now  = theta_pre - theta_add
 
         # update the covariance
         cov_post = cov_pre - K @ phi_t.T @ cov_pre
 
-        return {"para": theta_now, "diff": theta_add, "cov": cov_post, "inc_state": x_now - hat_x_now}
+        return {"para": theta_now, "cov": cov_post}
     
     def update_paraset(self, x_now, x_pre, u_pre, H_theta_pre, h_theta_pre, t: int):
         """
@@ -111,21 +112,38 @@ class RLSProjection:
             H_theta_append = np.vstack((H_theta_pre, H_theta_add))
             h_theta_append = np.hstack((h_theta_pre, h_theta_add))
 
-            # complexity_refined
+            # update the parameter set
             H_theta_new, h_theta_new = polytope_inclusion(H_theta_append, h_theta_append)
 
         return H_theta_new, h_theta_new
     
-    def projection(self, H_theta_new, h_theta_new, theta_prior):
+    def posterior(self, H_theta_new, h_theta_new, theta_prior, theta_pre):
         """
-        This is the projection operation on the prior parameter estimate
+        This is a series of post-operations on the prior parameter estimate
+        given a SMID estimate
 
         List of parameters:
         1. H_theta_new: the updated matrix H_theta
         2. h_theta_new: the updated vector h_theta
         3. theta_prior: the prior parameter estimate
+        4. theta_pre: the posterior parameter estimate at the previous step
+
+        Output: dictionary contains the following entries
+
+        1. "para", the updated parameter estimate after projection
+        2. "delta", 2-norm of the parameter update
+        3. "bound", 1-norm of the maximized error bound
         """
-        return project_onto_feasible_set(H_theta_new, h_theta_new, theta_prior)
+        # compute the posterior parameter using projection
+        theta_post = project_onto_feasible_set(H_theta_new, h_theta_new, theta_prior)
+
+        # compute the norm of the difference
+        norm_diff_para = np.linalg.norm(theta_post - theta_prior, ord=2)
+
+        # compute the error bound using 1-norm (linear programming)
+        error_bound = max_l1_deviation_value(H_theta_new, h_theta_new, theta_post)
+
+        return {"para": theta_post, "delta": norm_diff_para, "bound": error_bound}
 
 
 

@@ -27,7 +27,7 @@ def plotter_kernel(ax: maxes.Axes, x_data: np.ndarray, y_data: np.ndarray,
     :param marker: whether to show the marker
     Remark: this function will be frequently used in the class MonteCarloPlotter()
     """
-    # Compute the max, min, mena and variance
+    # Compute the max, min, mean and variance
     y_max = np.max(y_data, axis=0)
     y_min = np.min(y_data, axis=0)
     y_mean = np.mean(y_data, axis=0)

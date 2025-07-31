@@ -19,25 +19,28 @@ class SimulateRegret():
     3) regret calculator
     """
     def __init__(self, controller: MPCController, rls_estimator: RLSProjection, dynamics,
-                 x0: np.ndarray, para_star, dim_u,
+                 x0: np.ndarray, para_star,
                  Q, R,
                  dt, T_max):
         """
         The initialization function that used to specify common input
         arguments for the MPC simulations
-        Parameters: 
         
+        Parameters: 
+        # ---------- Controller and Estimator -----------
         1) controller: MPCController instance [class instance]
         2) rls_estimator: RLS_constant instance [class instance]
-        3) dynamics: the dynamic function
 
-        3) x0: initial state vector [nparray]
-        4) para_star: true parameter values [nparray]
-        5) dim_u: input dimension [int]
+        # ---------- Initial State and True Dynamics ----------
+        3) dynamics: the dynamic function [function]
+        4) x0: initial state vector [nparray]
+        5) para_star: true parameter values [nparray]
 
+        # ---------- Optimal Control Cost ----------
         6) Q: state weighting matrix [nparray]
         7) R: input weighting matrix [nparray]
         
+        # ---------- Time Scale ----------
         8) dt: sampling time [float]
         9) T_max: simulation step [int]
         """
@@ -54,8 +57,8 @@ class SimulateRegret():
         self.T = T_max
 
         # get state and input dimensions
-        self.dim_x = x0.shape[0]
-        self.dim_u = dim_u
+        self.dim_x = Q.shape[0]
+        self.dim_u = R.shape[0]
 
         # get parameter dimension
         self.dim_para = para_star.shape[0]
@@ -111,7 +114,8 @@ class SimulateRegret():
             2) para_0: initial parameter estimate [nparray]
             3) H_para: initial H matrix describing the parameter set
             4) h_para: initial h vector describing the parameter set
-            5) mu_0: initial covariance matrix, default is 1e3 (uncertain about the initial estimate)
+            5) mu_0: scale of the initial covariance matrix in RLS estimator, 
+                     default value: 1e3 (uncertainty about the initial estimate)
         
         Output: dictionary
             1) x_traj
@@ -158,7 +162,7 @@ class SimulateRegret():
             # update the parameter set
             H_post, h_post = self.rls.update_paraset(x_alg[:, t+1], x_alg[:, t], u_alg[:, t], H_prior, h_prior, 1)
             # projection for the posterior parameter estimate
-            para_est[:, t+1] = self.rls.projection(H_post, h_post, info_prior["para"])
+            para_est[:, t+1] = self.rls.posterior(H_post, h_post, info_prior["para"], para_est[:, t])["para"]
             
             # update the prior matrix
             H_prior, h_prior = H_post, h_post
