@@ -3,7 +3,7 @@ mpc_controller.py
 
 This module contains
 (1) the basic open-loop MPCController class that
-implements a Model Predictive Controller (MPC) for a discrete-time system;
+implements a Model Predictive Controller (MPC) for discrete-time systems;
 
 The controller uses CasADi for symbolic modeling and the optimizer within CasADi.
 """
@@ -15,8 +15,7 @@ class MPCController:
     """
     This is the MPC controller class, it has two parts
     1. Initialization and defining the NLP optimization problem
-    2. Solve the NLP problem with a specified initial state and return all outputs for open-loop analysis
-    3. Solve the NLP but only return the first input for closed-loop simulation and analysis
+    2. Solve the NLP but only return the first input for closed-loop simulation and analysis
     """
     def __init__(self, horizon, d_t,
                  x_dim, u_dim,
