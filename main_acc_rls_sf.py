@@ -131,7 +131,7 @@ time_s = dt * np.arange(0, T)
 # lr = 0.1
 
 # # number of disturbance realizations for simulation
-# N_sim = 10
+# N_sim = 100
 
 # # Initialize the output trajectory for adaptive control
 # xa_traj = np.zeros((N_sim, T + 1, x_dim)) # state
@@ -211,8 +211,10 @@ time_s = dt * np.arange(0, T)
 #         parasf_traj[i, t+1, :] = para_post_sf["para"]
 #         para_traj[i, t+1, :] = para_post["para"]
 #         diff_para = para_post_sf["delta"]
-#         boundsf_traj[i, t+1] = np.random.uniform(1, 3)*np.linalg.norm(parasf_traj[i, t+1, :] - para_star, ord=2)
-#         bound_traj[i, t+1] = np.random.uniform(1, 3)*np.linalg.norm(para_traj[i, t+1, :] - para_star, ord=2)
+#         # boundsf_traj[i, t+1] = np.random.uniform(1, 3)*np.linalg.norm(parasf_traj[i, t+1, :] - para_star, ord=2)
+#         # bound_traj[i, t+1] = np.random.uniform(1, 3)*np.linalg.norm(para_traj[i, t+1, :] - para_star, ord=2)
+#         boundsf_traj[i, t+1] = para_post_sf["diff"]
+#         bound_traj[i, t+1] = para_post_sf["diff"]
 #         cov_sf = para_info_sf["cov"]
 #         cov = para_info["cov"]
 #         # innovation[t_rls] = para_info["inc_state"]
