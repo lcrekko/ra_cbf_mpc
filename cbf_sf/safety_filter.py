@@ -93,7 +93,7 @@ class AdaptiveSafetyFilter():
 
         # ----------- Objective function ----------
         diff_u = self.usf - self.unom
-        self.obj = ca.mtimes(diff_u.T, np.eye(u_dim), diff_u)
+        self.obj = ca.mtimes([diff_u.T, np.eye(u_dim), diff_u]) # type: ignore
 
         # ----------- Constraints ------------
         # 1. Basic input constraints
@@ -140,6 +140,9 @@ class AdaptiveSafetyFilter():
         self.opti.subject_to(joint_comparison <= self.Bf_opt(self.x, self.usf, self.para))
 
         # -------- Assign the value to parameters --------
+        # Set the nominal input to the objective
+        self.opti.set_value(self.unom, unom_val)
+        
         # Set the initial state parameter value
         self.opti.set_value(self.x, x_val)
 

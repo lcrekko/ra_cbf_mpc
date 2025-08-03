@@ -6,10 +6,11 @@ GUROBI to solve the optimization.
 
 The included modules are
 
-1. 2-norm based projection
-2. 1-norm based most-distant-point finder
+1. 2-norm based projection (convex)
+2. 1-norm based most-distant-point finder (linear)
+3. 2-norm based polytopic maximization (non-convex)
 
-(more things are added in the future if needed)
+(addtional functions will added in the future if needed)
 """
 
 import numpy as np
@@ -102,6 +103,49 @@ def max_l1_deviation_value(A, b, x_star, tol=1e-6):
         raise RuntimeError(
             f"Gurobi did not reach OPTIMAL status (code {model.status})."
         )
+
+def max_2norm_polytope(A: np.ndarray, b: np.ndarray):
+    """
+    Solves the quadratic optimization problem:
+        maximize x^T x
+        subject to A x <= b
+
+    Parameters:
+        A (np.ndarray): Constraint matrix of shape (m, n)
+        b (np.ndarray): Constraint vector of shape (m,)
+
+    Returns:
+        norm_2_x: Square root of the objective value x^T x
+    """
+    m, n = A.shape
+    assert b.shape == (m,), "Shape mismatch: b must have shape (m,) where A is (m, n)"
+
+    # Create Gurobi model
+    model = gp.Model("maximize_xTx")
+    model.setParam("OutputFlag", 0)  # Suppress Gurobi output
+
+    # Add decision variables
+    x = model.addMVar(shape=n, name="x", lb=-GRB.INFINITY)
+
+    # Objective: maximize x^T x
+    Q = np.eye(n)
+    model.setObjective(x @ Q @ x, GRB.MAXIMIZE)
+
+    # Constraints: A x <= b
+    model.addConstr(A @ x <= b, name="Ax_leq_b")
+
+    # Allow non-convex QP
+    model.Params.NonConvex = 2
+
+    # Optimize
+    model.optimize()
+
+    if model.status == GRB.OPTIMAL:
+        norm_2_x = np.sqrt(model.ObjVal)
+        return norm_2_x
+    else:
+        raise RuntimeError("Optimization was not successful (status {}).".format(model.status))
+
 
 def polytope_inclusion(H_pre, h_pre):
     """

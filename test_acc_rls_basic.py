@@ -1,5 +1,5 @@
 """
-This is test script for ACC model in our case
+This is test script for ACC using MPC and RLS with SMID
 """
 
 import numpy as np
@@ -60,7 +60,7 @@ x_0 = np.array([20, 96])
 # print("next state integrated:", x_p)
 # print("next state separated:", x_p2)
 
-# ----------- initialize our RLS module ------------
+# ----------- initialize the RLS module ------------
 # initial covaraince matrix
 var_para = np.array([100, 50])
 cov = np.diag(var_para)
@@ -68,7 +68,7 @@ cov = np.diag(var_para)
 my_rls = RLSProjection(num_para, x_dim, sacc_fg, sacc_kernel, dt, H_w)
 # --------------------------------------------------
 
-# ----------- initialize our MPC module -------------
+# ----------- initialize the MPC module -------------
 # cost weights
 Q = np.array([[100, 0], [0, 1e-2]])
 R = np.array([5 * 1e-4]) # low weights, we do not care about the input
@@ -126,7 +126,7 @@ bound_traj[0] = bound_0
 
 # main simulation loop
 for t in range(T):
-    # a random exploration input
+    # MPC input
     u_traj[t, :] = my_mpc.solve_closed(x_traj[t, :], para_traj[t, :])
 
     # sample a noise
@@ -153,7 +153,7 @@ fig_sys, axes_sys = plt.subplots(3, 1, figsize=(6, 6))
 # axes[0].plot(time_state, v_traj_opt, label='velocity (OPT)')
 axes_sys[0].plot(dt * time, x_traj[:, 0], label='ego vehicle velocity')
 # axes_sys[0].axhline(y=para_star[0], label = 'true drag coefficient', color='r', linestyle='--', linewidth=2)
-axes_sys[0].set_title("RLS Estimation with SMID")
+axes_sys[0].set_title("Adaptive MPC")
 axes_sys[0].legend()
 axes_sys[0].set_facecolor((0.95, 0.95, 0.95))
 axes_sys[0].grid(True, linestyle='--', color='white', linewidth=1)

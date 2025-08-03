@@ -12,17 +12,15 @@ plt.rcParams.update({
 })
 
 def plotter_kernel(ax: maxes.Axes, x_data: np.ndarray, y_data: np.ndarray,
-                    info_text: dict, info_color: tuple,
+                    legend: str, linewidth: float, info_color: tuple, linestyle: str,
                     marker=False) -> None:
     """
     This is the kernel of the main plotting function MonteCarloPlotter
     :param ax: the handle of the subplots, e.g., ax[1, 0] (the second row, first column)
     :param x_data: the x-axis data (1-D array)
     :param y_data: a bunch of y-axis data (2-D array)
-    :param info_text: the text information, a dictionary that contains labels and titles
-                1) "x_label": the text of the x-axis
-                2) "y_label": the text of the y-axis
-                3) "legend": legend information, may not be used at all
+    :param legend: the legend, may not be used at all
+    :param linewidth: the linewidth
     :param info_color: tuple, color information, just a color
     :param marker: whether to show the marker
     Remark: this function will be frequently used in the class MonteCarloPlotter()
@@ -43,22 +41,23 @@ def plotter_kernel(ax: maxes.Axes, x_data: np.ndarray, y_data: np.ndarray,
         color_marker_face = (info_color[0] * 0.75, np.min([1, info_color[1] * 1.25]), info_color[2])
         color_marker_edge = (np.min([1, info_color[0] * 1.25]), info_color[1] * 0.75, info_color[2])
         ax.plot(x_data, y_mean,
-                label=info_text["legend"],
-                linewidth=2.5, color=info_color,
-                marker='.', markersize=10, markerfacecolor=color_marker_face,
-                markeredgewidth=2, markeredgecolor=color_marker_edge)
+                label=legend,
+                linewidth=linewidth, color=info_color,
+                marker='.', markersize=linewidth * 4, markerfacecolor=color_marker_face,
+                markeredgewidth=linewidth * 0.8, markeredgecolor=color_marker_edge)
     else:
         ax.plot(x_data, y_mean,
-                label=info_text["legend"],
-                linewidth=2.5, color=info_color)
+                label=legend,
+                linewidth=linewidth, color=info_color, linestyle=linestyle)
 
     # plot the max and the min (fill the shaded color)
-    ax.fill_between(x_data, y_min, y_max, color=color_range, alpha=0.25, label='Min-Max Envelope')
+    ax.fill_between(x_data, y_min, y_max, color=color_range, alpha=0.25)
 
 class RegretPlotter:
     def __init__(self, ax: maxes.Axes,
                  x_data: np.ndarray, y_data:np.ndarray,
-                 info_text: dict, info_font: dict, info_color: tuple,
+                 legend: str, linewidth: float, linestyle: str, 
+                 info_font: dict, info_color: tuple,
                  marker=False):
         """
         Initialize the basic plot information
@@ -83,16 +82,20 @@ class RegretPlotter:
         self.ax = ax
         self.x_data = x_data
         self.y_data = y_data
-        self.info_text = info_text
+        self.legend = legend
+        self.linewidth = linewidth
         self.info_font = info_font
         self.info_color = info_color
+        self.linestyle = linestyle
         self.marker = marker
 
-    def plot_unified(self, x_scale_log=False, y_scale_log=False, set_x_ticks=False):
+    def plot_unified(self, x_label, y_label, x_scale_log=False, y_scale_log=False, set_x_ticks=False):
         """
         This function is the basic plot, without any zoom in.
 
         Parameter:
+            x_label: str
+            y_label: str
             x_scale_log: whether the x_scale use the log
             y_scale_log: whether the y_scale use the log
             set_x_ticks: whether we actively control the ticks
@@ -100,16 +103,16 @@ class RegretPlotter:
         # ----------- Plotting Section -----------
         plotter_kernel(self.ax,
                        self.x_data, self.y_data,
-                       self.info_text, self.info_color,
+                       self.legend, self.linewidth, self.info_color, self.linestyle,
                        self.marker)
 
         # ----------- Post-configuration -----------
         # set the title and the labels
-        self.ax.set_xlabel(self.info_text["x_label"],
+        self.ax.set_xlabel(x_label,
                             fontdict={'family': self.info_font["ft_type"],
                                       'size': self.info_font["ft_size_label"],
                                       'weight': 'bold'})
-        self.ax.set_ylabel(self.info_text["y_label"],
+        self.ax.set_ylabel(y_label,
                             fontdict={'family': self.info_font["ft_type"],
                                       'size': self.info_font["ft_size_label"],
                                       'weight': 'bold'})
