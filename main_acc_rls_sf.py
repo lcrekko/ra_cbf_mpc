@@ -130,94 +130,101 @@ time = dt * np.arange(0, T + 1)
 time_s = dt * np.arange(0, T)
 # lr = 0.1
 
-# # number of disturbance realizations for simulation
-# N_sim = 100
+# number of disturbance realizations for simulation
+N_sim = 100
 
-# # Initialize the output trajectory for adaptive control
-# xa_traj = np.zeros((N_sim, T + 1, x_dim)) # state
+# Initialize the output trajectory for adaptive safe control
+xa_traj = np.zeros((N_sim, T + 1, x_dim)) # state
 # ua_traj = np.zeros((N_sim, T, u_dim)) # nominal MPC input
-# uasf_traj = np.zeros((N_sim, T, u_dim)) # filtered safe input
-# parasf_traj = np.zeros((N_sim, T + 1, num_para)) # parameter
-# boundsf_traj = np.zeros((N_sim, T + 1)) # parameter error bound
+uasf_traj = np.zeros((N_sim, T, u_dim)) # filtered safe input
+parasf_traj = np.zeros((N_sim, T + 1, num_para)) # parameter
+boundsf_traj = np.zeros((N_sim, T + 1)) # parameter error bound
 
-# # Initialize the output trajectory for unsafe control
-# x_traj = np.zeros((N_sim, T + 1, x_dim)) # state
-# u_traj = np.zeros((N_sim, T, u_dim)) # nominal MPC input
-# # usf_traj = np.zeros((N_sim, T, u_dim)) # filtered safe input
-# para_traj = np.zeros((N_sim, T + 1, num_para)) # parameter
-# bound_traj = np.zeros((N_sim, T + 1)) # parameter error bound
+# Initialize the output trajectory for nominal safe control
+xa_traj = np.zeros((N_sim, T + 1, x_dim)) # state
+ua_traj = np.zeros((N_sim, T, u_dim)) # nominal MPC input
+uasf_traj = np.zeros((N_sim, T, u_dim)) # filtered safe input
+parasf_traj = np.zeros((N_sim, T + 1, num_para)) # parameter
+boundsf_traj = np.zeros((N_sim, T + 1)) # parameter error bound
 
-# # Simulation main loops
-# for i in range(N_sim):
-# # outer loop for different realizations
-#     # Initialize the state, and initial estimation
-#     print("round:", i)
-#     xa_traj[i, 0, :] = x_0
-#     x_traj[i, 0, :] = x_0
-#     parasf_traj[i, 0, :] = para_0
-#     boundsf_traj[i, 0] = bound_0
-#     para_traj[i, 0, :] = para_0
-#     # bound_traj[i, 0] = bound_0
+# Initialize the output trajectory for unsafe control
+x_traj = np.zeros((N_sim, T + 1, x_dim)) # state
+u_traj = np.zeros((N_sim, T, u_dim)) # nominal MPC input
+# usf_traj = np.zeros((N_sim, T, u_dim)) # filtered safe input
+para_traj = np.zeros((N_sim, T + 1, num_para)) # parameter
+bound_traj = np.zeros((N_sim, T + 1)) # parameter error bound
 
-#     # Initialize the first parameter difference (no update)
-#     diff_para = 0
+# Simulation main loops
+for i in range(N_sim):
+# outer loop for different realizations
+    # Initialize the state, and initial estimation
+    print("round:", i)
+    xa_traj[i, 0, :] = x_0
+    x_traj[i, 0, :] = x_0
+    parasf_traj[i, 0, :] = para_0
+    boundsf_traj[i, 0] = bound_0
+    para_traj[i, 0, :] = para_0
+    # bound_traj[i, 0] = bound_0
 
-#     # sample a disturbance trajectory
-#     w = dt * np.random.uniform(-w_lim, w_lim, size=(T, x_dim))
+    # Initialize the first parameter difference (no update)
+    diff_para = 0
 
-#     # initial covaraince matrix
-#     var_para = np.array([100, 50])
-#     cov_sf = np.diag(var_para)
-#     cov = np.diag(var_para)
+    # sample a disturbance trajectory
+    w = dt * np.random.uniform(-w_lim, w_lim, size=(T, x_dim))
 
-#     # reset the parameter matrix
-#     H_para_sf = interleave_diag(-np.ones(num_para), np.ones(num_para))
-#     h_para_sf = interleave_vec(LB_para, UB_para)
+    # initial covaraince matrix
+    var_para = np.array([100, 50])
+    cov_sf = np.diag(var_para)
+    cov = np.diag(var_para)
 
-#     H_para = interleave_diag(-np.ones(num_para), np.ones(num_para))
-#     h_para = interleave_vec(LB_para, UB_para)
+    # reset the parameter matrix
+    H_para_sf = interleave_diag(-np.ones(num_para), np.ones(num_para))
+    h_para_sf = interleave_vec(LB_para, UB_para)
 
-#     for t in range(T):
-#     # inner loop for time simulation
-#         # adaptive MPC input
-#         ua_traj[i, t, :] = my_mpc.solve_closed(xa_traj[i, t, :], parasf_traj[i, t, :])
-#         # nominal MPC input
-#         u_traj[i, t, :] = my_mpc.solve_closed(x_traj[i, t, :], para_traj[i, t, :])
+    H_para = interleave_diag(-np.ones(num_para), np.ones(num_para))
+    h_para = interleave_vec(LB_para, UB_para)
 
-#         # safe input by applying adaptive safety filter
-#         uasf_traj[i, t, :] = my_sf.filter(xa_traj[i, t, :], parasf_traj[i, t, :], ua_traj[i, t, :],
-#                                           diff_para, boundsf_traj[i, t])
-#         # safe input by applying nominal safety filter
-#         #usf_traj[i, t, :] = my_sf.filter(x_traj[i, t, :], para_0, u_traj[i, t, :], 0, bound_0)
+    for t in range(T):
+    # inner loop for time simulation
+        # adaptive MPC input
+        ua_traj[i, t, :] = my_mpc.solve_closed(xa_traj[i, t, :], parasf_traj[i, t, :])
+        # nominal MPC input
+        u_traj[i, t, :] = my_mpc.solve_closed(x_traj[i, t, :], para_traj[i, t, :])
 
-#         # obtain the measured next state using the true parameter
-#         xa_traj[i, t+1, :] = sacc_dynamics(xa_traj[i, t, :], uasf_traj[i, t, :], para_star) + w[t, :]
-#         x_traj[i, t+1, :] = sacc_dynamics(x_traj[i, t, :], u_traj[i, t, :], para_star) + w[t, :]
+        # safe input by applying adaptive safety filter
+        uasf_traj[i, t, :] = my_sf.filter(xa_traj[i, t, :], parasf_traj[i, t, :], ua_traj[i, t, :],
+                                          diff_para, boundsf_traj[i, t])
+        # safe input by applying nominal safety filter
+        #usf_traj[i, t, :] = my_sf.filter(x_traj[i, t, :], para_0, u_traj[i, t, :], 0, bound_0)
 
-#         para_info_sf = my_rls.update_para(xa_traj[i, t+1, :], xa_traj[i, t, :], 
-#                                        uasf_traj[i, t, :], parasf_traj[i, t, :], cov, t+1)
-#         para_info = my_rls.update_para(x_traj[i, t+1, :], x_traj[i, t, :], 
-#                                        u_traj[i, t, :], para_traj[i, t, :], cov, t+1)
+        # obtain the measured next state using the true parameter
+        xa_traj[i, t+1, :] = sacc_dynamics(xa_traj[i, t, :], uasf_traj[i, t, :], para_star) + w[t, :]
+        x_traj[i, t+1, :] = sacc_dynamics(x_traj[i, t, :], u_traj[i, t, :], para_star) + w[t, :]
 
-#         # para_traj[t_rls + 1, :] = para_info["para"]
-#         H_para_next_sf, h_para_next_sf = my_rls.update_paraset(xa_traj[i, t+1, :], xa_traj[i, t, :], uasf_traj[i, t, :],
-#                                                             H_para_sf, h_para_sf, t+1)
-#         H_para_next, h_para_next = my_rls.update_paraset(x_traj[i, t+1, :], x_traj[i, t, :], u_traj[i, t, :],
-#                                                             H_para, h_para, t+1)
-#         para_post_sf = my_rls.posterior(H_para_next_sf, h_para_next_sf, 
-#                                         para_info_sf["para"], parasf_traj[i, t, :])
-#         para_post = my_rls.posterior(H_para_next, h_para_next, 
-#                                         para_info["para"], para_traj[i, t, :])
-#         parasf_traj[i, t+1, :] = para_post_sf["para"]
-#         para_traj[i, t+1, :] = para_post["para"]
-#         diff_para = para_post_sf["delta"]
-#         # boundsf_traj[i, t+1] = np.random.uniform(1, 3)*np.linalg.norm(parasf_traj[i, t+1, :] - para_star, ord=2)
-#         # bound_traj[i, t+1] = np.random.uniform(1, 3)*np.linalg.norm(para_traj[i, t+1, :] - para_star, ord=2)
-#         boundsf_traj[i, t+1] = para_post_sf["diff"]
-#         bound_traj[i, t+1] = para_post_sf["diff"]
-#         cov_sf = para_info_sf["cov"]
-#         cov = para_info["cov"]
-#         # innovation[t_rls] = para_info["inc_state"]
+        para_info_sf = my_rls.update_para(xa_traj[i, t+1, :], xa_traj[i, t, :], 
+                                       uasf_traj[i, t, :], parasf_traj[i, t, :], cov, t+1)
+        para_info = my_rls.update_para(x_traj[i, t+1, :], x_traj[i, t, :], 
+                                       u_traj[i, t, :], para_traj[i, t, :], cov, t+1)
+
+        # para_traj[t_rls + 1, :] = para_info["para"]
+        H_para_next_sf, h_para_next_sf = my_rls.update_paraset(xa_traj[i, t+1, :], xa_traj[i, t, :], uasf_traj[i, t, :],
+                                                            H_para_sf, h_para_sf, t+1)
+        H_para_next, h_para_next = my_rls.update_paraset(x_traj[i, t+1, :], x_traj[i, t, :], u_traj[i, t, :],
+                                                            H_para, h_para, t+1)
+        para_post_sf = my_rls.posterior(H_para_next_sf, h_para_next_sf, 
+                                        para_info_sf["para"], parasf_traj[i, t, :])
+        para_post = my_rls.posterior(H_para_next, h_para_next, 
+                                        para_info["para"], para_traj[i, t, :])
+        parasf_traj[i, t+1, :] = para_post_sf["para"]
+        para_traj[i, t+1, :] = para_post["para"]
+        diff_para = para_post_sf["delta"]
+        # boundsf_traj[i, t+1] = np.random.uniform(1, 3)*np.linalg.norm(parasf_traj[i, t+1, :] - para_star, ord=2)
+        # bound_traj[i, t+1] = np.random.uniform(1, 3)*np.linalg.norm(para_traj[i, t+1, :] - para_star, ord=2)
+        boundsf_traj[i, t+1] = para_post_sf["diff"]
+        bound_traj[i, t+1] = para_post_sf["diff"]
+        cov_sf = para_info_sf["cov"]
+        cov = para_info["cov"]
+        # innovation[t_rls] = para_info["inc_state"]
 
 # # save data for reuse
 # np.savez('data_safe.npz', state=xa_traj, input=uasf_traj, para=parasf_traj, bound=boundsf_traj)
