@@ -30,7 +30,7 @@ u_dim = 1
 u_lim = 1e4
 
 #  --------------- Disturbance information -----------------
-w_lim = np.array([0.1, 1])
+w_lim = np.array([0.2, 1])
 
 # disturbance matrix
 H_w = interleave_diag(-w_lim, w_lim)
@@ -40,11 +40,11 @@ bar_w  = max_2norm_polytope(H_w, np.ones(2 * x_dim))
 
 # ---------------- Parameter information -----------------
 num_para = 2
-para_0 = np.array([0.55, 30])
-para_star = np.array([0.45, 24])
+para_0 = np.array([0.15, 30])
+para_star = np.array([0.55, 22])
 
 # parameter bound
-LB_para = [0.3, 20]
+LB_para = [0.1, 20]
 UB_para = [0.6, 32]
 
 # parameter matrix
@@ -59,7 +59,7 @@ bound_0 = max_l1_deviation_value(H_para, h_para, para_0)
 
 # ----------- Test dynamics and one step estimation test --------------
 # initial state
-x_0 = np.array([22, 80])
+x_0 = np.array([22, 96])
 # u_0 = 100 * np.random.randn(1)
 
 # # sample a random disturbance
@@ -105,7 +105,7 @@ my_mpc = MPCController(N_prediction, dt,
 
 # ----------- initialize the SF module ------------
 # the minimum eigenvalue
-gamma = 1e3
+gamma = 1e5
 
 # compute the Lipschitz constant (linear barrier function)
 L_B = np.linalg.norm(np.array([1, 1.8]))
@@ -269,12 +269,12 @@ my_linewidth = 1.2
 mygreen = (0.4157, 0.7490, 0.6588)
 myblue = (0.4549, 0.4353, 0.6941)
 myred = (0.8980, 0.5882, 0.3529)
-mydarkblue = (0.2314, 0.3255, 0.5294)
-mydarkblue_cop = (0.7725, 0.8000, 0.8588)
-myleaveyellow = (0.8392, 0.6353, 0.1569)
-myleaveyellow_cop = (0.9098, 0.8118, 0.5725)
+mydarkblue = (0.4235, 0.7765, 0.8471)
+mydarkblue_cop = (0.7725*0.5, 0.8000*0.5, 0.8588*0.5)
+myleaveyellow = (0.9333, 0.4588, 0.3922)
+myleaveyellow_cop = (0.9098*0.5, 0.8118*0.5, 0.5725*0.5)
 legend_1 = "aMPC-raCBF"
-legend_2 = "MPC-CBF"
+legend_2 = "MPC-rCBF"
 legend_3 = "aMPC"
 linestyle_1 = '-'
 linestyle_2 = '-'
@@ -301,6 +301,19 @@ axes_sys[0].set_facecolor((0.95, 0.95, 0.95))
 axes_sys[0].set_ylabel(r'$v$[m/s]')
 axes_sys[0].grid(True, linestyle='--', color='white', linewidth=1)
 
+axins_0 = zoomed_inset_axes(axes_sys[0], zoom = 6, loc='lower center')
+plotter_kernel(axins_0, time, xa_traj[:, :, 0], 
+               legend_1, my_linewidth, mygreen, linestyle_1)
+plotter_kernel(axins_0, time, xn_traj[:, :, 0], 
+               legend_2, my_linewidth, myblue, linestyle_2)
+plotter_kernel(axins_0, time, x_traj[:, :, 0],
+               legend_3, my_linewidth, myred, linestyle_3)
+axins_0.set_xticks([])
+axins_0.yaxis.tick_right()
+axins_0.set_xlim(6.3, 6.9)
+axins_0.set_ylim(29.2, 29.8)
+mark_inset(axes_sys[0], axins_0, loc1=2, loc2=4, fc="none", ec="gray")
+
 axes_sys[0].set_xticklabels([])
 
 # Plot 2
@@ -317,17 +330,17 @@ axes_sys[1].set_facecolor((0.95, 0.95, 0.95))
 axes_sys[1].set_ylabel(r'$d - 1.8v$[m]')
 axes_sys[1].grid(True, linestyle='--', color='white', linewidth=1)
 
-axins = zoomed_inset_axes(axes_sys[1], zoom = 5, loc='upper right')
-plotter_kernel(axins, time, xa_traj[:, :, 1] - 1.8*xa_traj[:, :, 0], 
+axins_1 = zoomed_inset_axes(axes_sys[1], zoom = 8, loc='upper right')
+plotter_kernel(axins_1, time, xa_traj[:, :, 1] - 1.8*xa_traj[:, :, 0], 
                legend_1, my_linewidth, mygreen, linestyle_1)
-plotter_kernel(axins, time, xn_traj[:, :, 1] - 1.8*xn_traj[:, :, 0], 
+plotter_kernel(axins_1, time, xn_traj[:, :, 1] - 1.8*xn_traj[:, :, 0], 
                legend_2, my_linewidth, myblue, linestyle_2)
-plotter_kernel(axins, time, x_traj[:, :, 1] - 1.8*x_traj[:, :, 0],
+plotter_kernel(axins_1, time, x_traj[:, :, 1] - 1.8*x_traj[:, :, 0],
                legend_3, my_linewidth, myred, linestyle_3)
-axins.set_xticks([])
-axins.set_xlim(6, 7)
-axins.set_ylim(2, 6)
-mark_inset(axes_sys[1], axins, loc1=2, loc2=4, fc="none", ec="gray")
+axins_1.set_xticks([])
+axins_1.set_xlim(6.3, 6.9)
+axins_1.set_ylim(3, 6.5)
+mark_inset(axes_sys[1], axins_1, loc1=2, loc2=4, fc="none", ec="gray")
 
 axes_sys[1].set_xticklabels([])
 
@@ -343,6 +356,19 @@ plotter_kernel(axes_sys[2], time_s, u_traj[:, :, 0],
 axes_sys[2].set_facecolor((0.95, 0.95, 0.95))
 axes_sys[2].grid(True, linestyle='--', color='white', linewidth=1)
 axes_sys[2].set_ylabel(r'$u$[N]')
+
+axins_2 = zoomed_inset_axes(axes_sys[2], zoom = 2.5, loc='lower left')
+plotter_kernel(axins_2, time_s, u_asf_traj[:, :, 0], 
+               legend_1, my_linewidth, mygreen, linestyle_1)
+plotter_kernel(axins_2, time_s, u_nsf_traj[:, :, 0], 
+               legend_2, my_linewidth, myblue, linestyle_2)
+plotter_kernel(axins_2, time_s, u_traj[:, :, 0],
+               legend_3, my_linewidth, myred, linestyle_3)
+axins_2.set_xticks([])
+axins_2.yaxis.tick_right()
+axins_2.set_xlim(7, 8)
+axins_2.set_ylim(-5800, -2100)
+mark_inset(axes_sys[2], axins_2, loc1=2, loc2=4, fc="none", ec="gray")
 
 formatter = ticker.ScalarFormatter(useMathText=True)
 formatter.set_powerlimits((-3, 3))  # Force multiplier display if within 10^3 range
