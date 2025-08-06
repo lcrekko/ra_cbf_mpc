@@ -34,7 +34,7 @@ def plotter_kernel(ax: maxes.Axes, x_data: np.ndarray, y_data: np.ndarray,
     # Creat color variations
     # color_bound = tuple(x * 0.75 for x in info_color)
     # color_variance = tuple(x * 0.5 for x in info_color)
-    color_range = tuple(x * 0.25 for x in info_color)
+    color_range = tuple(x * 0.75 for x in info_color)
 
     # basic mean plot
     if marker:
